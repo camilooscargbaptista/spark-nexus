@@ -1,0 +1,20 @@
+<div class="email-validator-page">
+  <div class="page-header">
+    <h1>Email Validator</h1>
+    <p>Valide emails em massa</p>
+  </div>
+
+  <mat-card>
+    <mat-card-content>
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Cole os emails aqui (um por linha)</mat-label>
+        <textarea matInput [(ngModel)]="emailList" rows="10"></textarea>
+      </mat-form-field>
+
+      <button mat-raised-button color="primary" (click)="validateEmails()">
+        <mat-icon>check_circle</mat-icon>
+        Validar Emails
+      </button>
+    </mat-card-content>
+  </mat-card>
+</div>

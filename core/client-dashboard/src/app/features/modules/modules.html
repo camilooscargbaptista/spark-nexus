@@ -1,0 +1,21 @@
+<div class="modules-page">
+  <div class="page-header">
+    <h1>Módulos</h1>
+    <p>Gerencie seus módulos ativos</p>
+  </div>
+
+  <div class="modules-grid">
+    <mat-card *ngFor="let module of modules" class="module-card">
+      <mat-card-header>
+        <mat-icon>{{ module.icon }}</mat-icon>
+        <mat-chip [class]="'status-' + module.status">
+          {{ module.status }}
+        </mat-chip>
+      </mat-card-header>
+      <mat-card-content>
+        <h3>{{ module.name }}</h3>
+        <button mat-button color="primary">Configurar</button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

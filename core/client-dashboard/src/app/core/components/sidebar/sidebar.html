@@ -1,0 +1,24 @@
+<nav class="sidebar" [class.closed]="!isOpen">
+  <div class="logo">
+    <span class="logo-icon">🚀</span>
+    <span class="logo-text">Spark Nexus</span>
+  </div>
+
+  <div class="menu">
+    <div class="menu-item"
+         *ngFor="let item of menuItems"
+         [class.active]="isActive(item.route)"
+         (click)="navigate(item.route)">
+      <mat-icon class="menu-icon">{{ item.icon }}</mat-icon>
+      <span class="menu-label">{{ item.label }}</span>
+      <span class="menu-badge" *ngIf="item.badge">{{ item.badge }}</span>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="organization">
+      <div class="org-name">{{ organization.name }}</div>
+      <div class="org-plan">Plano {{ organization.plan }}</div>
+    </div>
+  </div>
+</nav>

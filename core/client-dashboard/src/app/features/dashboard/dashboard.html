@@ -1,0 +1,62 @@
+<div class="dashboard">
+  <div class="page-header">
+    <h1>Dashboard</h1>
+    <p>Visão geral da sua conta</p>
+  </div>
+
+  <div class="stats-grid">
+    <mat-card class="stat-card" *ngFor="let stat of stats">
+      <div class="stat-icon" [style.background-color]="stat.color + '20'" [style.color]="stat.color">
+        <mat-icon>{{ stat.icon }}</mat-icon>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">{{ stat.value }}</div>
+        <div class="stat-title">{{ stat.title }}</div>
+        <div class="stat-change" [class.up]="stat.trend === 'up'" [class.down]="stat.trend === 'down'">
+          {{ stat.change }}
+        </div>
+      </div>
+    </mat-card>
+  </div>
+
+  <div class="content-grid">
+    <div class="modules-section">
+      <h2>Módulos Ativos</h2>
+      <div class="modules-grid">
+        <mat-card class="module-card" *ngFor="let module of activeModules">
+          <div class="module-header">
+            <mat-icon [style.color]="module.status === 'active' ? '#10b981' : module.status === 'trial' ? '#f59e0b' : '#94a3b8'">
+              {{ module.icon }}
+            </mat-icon>
+            <mat-chip [class]="'status-' + module.status">
+              {{ module.status === 'active' ? 'Ativo' : module.status === 'trial' ? 'Trial' : 'Inativo' }}
+            </mat-chip>
+          </div>
+          <h3>{{ module.name }}</h3>
+          <div class="module-usage" *ngIf="module.usage">
+            <mat-progress-bar mode="determinate" [value]="getUsagePercent(module.usage)"></mat-progress-bar>
+            <div class="usage-text">
+              {{ module.usage.current }} / {{ module.usage.limit }} usado
+            </div>
+          </div>
+          <button mat-raised-button color="primary" class="module-btn">Gerenciar</button>
+        </mat-card>
+      </div>
+    </div>
+
+    <div class="activity-section">
+      <h2>Atividade Recente</h2>
+      <mat-card class="activity-list">
+        <div class="activity-item" *ngFor="let activity of recentActivities">
+          <div class="activity-icon" [style.background-color]="activity.color + '20'" [style.color]="activity.color">
+            <mat-icon>{{ activity.icon }}</mat-icon>
+          </div>
+          <div class="activity-content">
+            <div class="activity-title">{{ activity.title }}</div>
+            <div class="activity-time">{{ activity.time }}</div>
+          </div>
+        </div>
+      </mat-card>
+    </div>
+  </div>
+</div>

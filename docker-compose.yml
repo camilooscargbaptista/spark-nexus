@@ -1,0 +1,227 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # CORE INFRASTRUCTURE
+  # ===========================================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: sparknexus-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./shared/database/scripts/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh:ro
+      - ./shared/database/schemas:/schemas:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - sparknexus-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sparknexus-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - sparknexus-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: sparknexus-rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - sparknexus-network
+
+  # ===========================================
+  # CORE SERVICES
+  # ===========================================
+
+  auth-service:
+    build:
+      context: ./core/auth-service
+      dockerfile: Dockerfile
+    container_name: sparknexus-auth
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sparknexus_core
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - PORT=3001
+    ports:
+      - "3001:3001"
+    networks:
+      - sparknexus-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  billing-service:
+    build:
+      context: ./core/billing-service
+      dockerfile: Dockerfile
+    container_name: sparknexus-billing
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sparknexus_core
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - PORT=3002
+    ports:
+      - "3002:3002"
+    networks:
+      - sparknexus-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  tenant-service:
+    build:
+      context: ./core/tenant-service
+      dockerfile: Dockerfile
+    container_name: sparknexus-tenant
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sparknexus_core
+      - PORT=3003
+    ports:
+      - "3003:3003"
+    networks:
+      - sparknexus-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===========================================
+  # MODULES
+  # ===========================================
+
+  module-email-validator:
+    build:
+      context: ./modules/email-validator
+      dockerfile: Dockerfile
+    container_name: sparknexus-mod-email
+    restart: unless-stopped
+    environment:
+      - MODULE_ID=email-validator
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sparknexus_modules
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/3
+      - N8N_WEBHOOK_URL=http://n8n-email-validator:5678
+      - HUNTER_API_KEY=${HUNTER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=4001
+    ports:
+      - "4001:4001"
+    networks:
+      - sparknexus-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  n8n-email-validator:
+    image: n8nio/n8n:latest
+    container_name: sparknexus-n8n-email
+    restart: unless-stopped
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=sparknexus_modules
+      - DB_POSTGRESDB_USER=${POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_SCHEMA=n8n_email_validator
+    volumes:
+      - n8n_data:/home/node/.n8n
+    ports:
+      - "5678:5678"
+    networks:
+      - sparknexus-network
+
+  # ===========================================
+  # FRONTEND
+  # ===========================================
+
+  admin-dashboard:
+    build:
+      context: ./core/admin-dashboard
+      dockerfile: Dockerfile.dev
+    container_name: sparknexus-admin
+    restart: unless-stopped
+    volumes:
+      - ./core/admin-dashboard:/app
+      - /app/node_modules
+    ports:
+      - "4200:4200"
+    environment:
+      - API_URL=http://localhost:3001
+    networks:
+      - sparknexus-network
+
+  client-dashboard:
+    build:
+      context: ./core/client-dashboard
+      dockerfile: Dockerfile.dev
+    container_name: sparknexus-client
+    restart: unless-stopped
+    volumes:
+      - ./core/client-dashboard:/app
+      - /app/node_modules
+    ports:
+      - "4201:4201"
+    environment:
+      - API_URL=http://localhost:3001
+    networks:
+      - sparknexus-network
+
+  # ===========================================
+  # API GATEWAY
+  # ===========================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: sparknexus-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - sparknexus-network
+    depends_on:
+      - auth-service
+      - billing-service
+      - tenant-service
+      - module-email-validator
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  n8n_data:
+
+networks:
+  sparknexus-network:
+    driver: bridge

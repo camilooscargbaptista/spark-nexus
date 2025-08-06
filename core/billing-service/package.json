@@ -1,0 +1,13 @@
+{
+  "name": "sparknexus-billing-service",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "nodemon src/main.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "stripe": "^14.0.0",
+    "pg": "^8.11.0"
+  }
+}

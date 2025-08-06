@@ -1,0 +1,18 @@
+<div class="settings-page">
+  <div class="page-header">
+    <h1>Configurações</h1>
+    <p>Personalize sua experiência</p>
+  </div>
+
+  <mat-card>
+    <mat-card-content>
+      <mat-slide-toggle [(ngModel)]="settings.notifications">
+        Notificações
+      </mat-slide-toggle>
+      <br><br>
+      <mat-slide-toggle [(ngModel)]="settings.darkMode">
+        Modo Escuro
+      </mat-slide-toggle>
+    </mat-card-content>
+  </mat-card>
+</div>
