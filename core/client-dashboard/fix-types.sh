@@ -1,3 +1,21 @@
+#!/bin/bash
+
+# Script para corrigir os tipos do Dashboard
+# Execute dentro da pasta client-dashboard
+
+echo "🔧 Corrigindo tipos do Dashboard..."
+echo ""
+
+# Cores
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}📝 Corrigindo dashboard.ts...${NC}"
+
+# Corrigir o Dashboard Component
+cat > src/app/features/dashboard/dashboard.ts << 'EOF'
 import { Component, OnInit, ViewChild, ElementRef, inject, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -167,7 +185,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             text: 'Evolução Mensal',
             font: {
               size: 16,
-              weight: 600  // Usar número em vez de string
+              weight: '600'
             },
             padding: {
               bottom: 20
@@ -237,7 +255,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             text: 'Distribuição de Validações',
             font: {
               size: 16,
-              weight: 600  // Usar número em vez de string
+              weight: '600'
             },
             padding: {
               bottom: 20
@@ -265,3 +283,34 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return `Há ${days} dia${days > 1 ? 's' : ''}`;
   }
 }
+EOF
+
+echo -e "${GREEN}✅ Dashboard corrigido${NC}"
+
+echo -e "${BLUE}📝 Verificando se Chart.js está instalado...${NC}"
+
+# Verificar se chart.js está instalado
+if ! npm list chart.js >/dev/null 2>&1; then
+    echo -e "${YELLOW}Instalando Chart.js...${NC}"
+    npm install chart.js --save
+    echo -e "${GREEN}✅ Chart.js instalado${NC}"
+else
+    echo -e "${GREEN}✅ Chart.js já está instalado${NC}"
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "${GREEN}✅ TIPOS CORRIGIDOS COM SUCESSO!${NC}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo -e "${YELLOW}📋 O que foi corrigido:${NC}"
+echo "  ✅ Tipo TrendType definido corretamente"
+echo "  ✅ Interface StatCard atualizada"
+echo "  ✅ Verificações de elementos do DOM"
+echo "  ✅ Destruição de gráficos existentes"
+echo "  ✅ Chart.js verificado/instalado"
+echo ""
+echo -e "${BLUE}🚀 Reinicie o servidor:${NC}"
+echo ""
+echo "  npm start"
+echo ""

@@ -4,7 +4,11 @@
     <p>Visão geral da sua conta</p>
   </div>
 
-  <div class="stats-grid">
+  <div class="loading-overlay" *ngIf="loading">
+    <mat-spinner></mat-spinner>
+  </div>
+
+  <div class="stats-grid" *ngIf="!loading">
     <mat-card class="stat-card" *ngFor="let stat of stats">
       <div class="stat-icon" [style.background-color]="stat.color + '20'" [style.color]="stat.color">
         <mat-icon>{{ stat.icon }}</mat-icon>
@@ -19,7 +23,31 @@
     </mat-card>
   </div>
 
-  <div class="content-grid">
+  <div class="charts-grid" *ngIf="!loading">
+    <mat-card class="chart-card">
+      <mat-card-header>
+        <mat-card-title>Tendência de Validações</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="chart-container">
+          <canvas #lineChart></canvas>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="chart-card">
+      <mat-card-header>
+        <mat-card-title>Distribuição de Resultados</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="chart-container small">
+          <canvas #doughnutChart></canvas>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="content-grid" *ngIf="!loading">
     <div class="modules-section">
       <h2>Módulos Ativos</h2>
       <div class="modules-grid">
@@ -33,6 +61,7 @@
             </mat-chip>
           </div>
           <h3>{{ module.name }}</h3>
+          <p class="module-description">{{ module.description }}</p>
           <div class="module-usage" *ngIf="module.usage">
             <mat-progress-bar mode="determinate" [value]="getUsagePercent(module.usage)"></mat-progress-bar>
             <div class="usage-text">
@@ -53,7 +82,7 @@
           </div>
           <div class="activity-content">
             <div class="activity-title">{{ activity.title }}</div>
-            <div class="activity-time">{{ activity.time }}</div>
+            <div class="activity-time">{{ formatTime(activity.time) }}</div>
           </div>
         </div>
       </mat-card>

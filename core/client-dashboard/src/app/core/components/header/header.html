@@ -5,7 +5,7 @@
 
   <span class="spacer"></span>
 
-  <button mat-icon-button>
+  <button mat-icon-button [matBadge]="notifications" matBadgeColor="warn" matBadgeSize="small">
     <mat-icon>notifications</mat-icon>
   </button>
 
@@ -17,21 +17,28 @@
 
   <mat-menu #userMenu="matMenu">
     <div class="user-info">
-      <div class="user-name">{{ user.name }}</div>
-      <div class="user-email">{{ user.email }}</div>
+      <div class="user-avatar-large">{{ user.avatar }}</div>
+      <div class="user-details">
+        <div class="user-name">{{ user.name }}</div>
+        <div class="user-email">{{ user.email }}</div>
+      </div>
     </div>
     <mat-divider></mat-divider>
-    <button mat-menu-item>
+    <button mat-menu-item routerLink="/settings">
       <mat-icon>person</mat-icon>
       <span>Meu Perfil</span>
     </button>
-    <button mat-menu-item>
+    <button mat-menu-item routerLink="/settings">
       <mat-icon>settings</mat-icon>
       <span>Configurações</span>
     </button>
+    <button mat-menu-item routerLink="/billing">
+      <mat-icon>credit_card</mat-icon>
+      <span>Faturamento</span>
+    </button>
     <mat-divider></mat-divider>
     <button mat-menu-item (click)="logout()">
-      <mat-icon>logout</mat-icon>
+      <mat-icon color="warn">logout</mat-icon>
       <span>Sair</span>
     </button>
   </mat-menu>

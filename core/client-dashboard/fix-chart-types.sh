@@ -1,3 +1,21 @@
+#!/bin/bash
+
+# Script para corrigir os tipos do Chart.js
+# Execute dentro da pasta client-dashboard
+
+echo "🔧 Corrigindo tipos do Chart.js..."
+echo ""
+
+# Cores
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}📝 Corrigindo dashboard.ts com tipos corretos do Chart.js...${NC}"
+
+# Corrigir o Dashboard Component
+cat > src/app/features/dashboard/dashboard.ts << 'EOF'
 import { Component, OnInit, ViewChild, ElementRef, inject, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -265,3 +283,31 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return `Há ${days} dia${days > 1 ? 's' : ''}`;
   }
 }
+EOF
+
+echo -e "${GREEN}✅ Dashboard corrigido com tipos corretos${NC}"
+
+# Verificar se precisa instalar tipos do Chart.js
+echo -e "${BLUE}📝 Verificando tipos do Chart.js...${NC}"
+
+if ! npm list @types/chart.js >/dev/null 2>&1; then
+    echo -e "${YELLOW}Instalando tipos do Chart.js...${NC}"
+    npm install --save-dev @types/chart.js
+    echo -e "${GREEN}✅ Tipos do Chart.js instalados${NC}"
+else
+    echo -e "${GREEN}✅ Tipos do Chart.js já estão instalados${NC}"
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo -e "${GREEN}✅ TIPOS DO CHART.JS CORRIGIDOS!${NC}"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo -e "${YELLOW}📋 O que foi corrigido:${NC}"
+echo "  ✅ weight: 600 (número) em vez de '600' (string)"
+echo "  ✅ Tipos do Chart.js verificados"
+echo ""
+echo -e "${BLUE}🚀 Reinicie o servidor:${NC}"
+echo ""
+echo "  npm start"
+echo ""

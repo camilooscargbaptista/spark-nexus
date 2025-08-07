@@ -1,20 +1,154 @@
 <div class="email-validator-page">
   <div class="page-header">
     <h1>Email Validator</h1>
-    <p>Valide emails em massa</p>
+    <p>Valide emails em massa com análise detalhada</p>
   </div>
 
-  <mat-card>
-    <mat-card-content>
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Cole os emails aqui (um por linha)</mat-label>
-        <textarea matInput [(ngModel)]="emailList" rows="10"></textarea>
-      </mat-form-field>
+  <div class="validator-grid">
+    <mat-card class="input-card">
+      <mat-card-header>
+        <mat-card-title>Emails para Validar</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Cole os emails aqui (um por linha)</mat-label>
+          <textarea matInput [(ngModel)]="emailList" rows="15" [disabled]="validating"
+                    placeholder="exemplo@email.com"></textarea>
+          <mat-hint>Máximo de 100 emails por vez</mat-hint>
+        </mat-form-field>
 
-      <button mat-raised-button color="primary" (click)="validateEmails()">
-        <mat-icon>check_circle</mat-icon>
-        Validar Emails
+        <div class="button-group">
+          <button mat-raised-button color="primary" (click)="validateEmails()" [disabled]="validating">
+            <mat-icon>check_circle</mat-icon>
+            {{ validating ? 'Validando...' : 'Validar Emails' }}
+          </button>
+          <button mat-button (click)="clearResults()" [disabled]="validating">
+            <mat-icon>clear</mat-icon>
+            Limpar
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <div class="stats-section" *ngIf="results.length > 0">
+      <mat-card class="stat-card">
+        <div class="stat-icon total">
+          <mat-icon>email</mat-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.total }}</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <div class="stat-icon valid">
+          <mat-icon>check_circle</mat-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.valid }}</div>
+          <div class="stat-label">Válidos</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <div class="stat-icon invalid">
+          <mat-icon>cancel</mat-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.invalid }}</div>
+          <div class="stat-label">Inválidos</div>
+        </div>
+      </mat-card>
+
+      <mat-card class="stat-card">
+        <div class="stat-icon rate">
+          <mat-icon>percent</mat-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.validRate | number:'1.1-1' }}%</div>
+          <div class="stat-label">Taxa de Válidos</div>
+        </div>
+      </mat-card>
+    </div>
+  </div>
+
+  <div class="loading-spinner" *ngIf="validating">
+    <mat-spinner></mat-spinner>
+    <p>Validando emails...</p>
+  </div>
+
+  <mat-card class="results-card" *ngIf="results.length > 0 && !validating">
+    <mat-card-header>
+      <mat-card-title>Resultados da Validação</mat-card-title>
+      <button mat-button color="primary" (click)="exportResults()">
+        <mat-icon>download</mat-icon>
+        Exportar CSV
       </button>
+    </mat-card-header>
+    <mat-card-content>
+      <table mat-table [dataSource]="results" class="results-table">
+
+        <ng-container matColumnDef="email">
+          <th mat-header-cell *matHeaderCellDef>Email</th>
+          <td mat-cell *matCellDef="let result">{{ result.email }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let result">
+            <mat-chip [class]="result.valid ? 'valid-chip' : 'invalid-chip'">
+              <mat-icon>{{ result.valid ? 'check' : 'close' }}</mat-icon>
+              {{ result.valid ? 'Válido' : 'Inválido' }}
+            </mat-chip>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="score">
+          <th mat-header-cell *matHeaderCellDef>Score</th>
+          <td mat-cell *matCellDef="let result">
+            <mat-chip [color]="getScoreColor(result.score)">
+              {{ result.score }}
+            </mat-chip>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="checks">
+          <th mat-header-cell *matHeaderCellDef>Verificações</th>
+          <td mat-cell *matCellDef="let result">
+            <div class="checks-icons">
+              <mat-icon [matTooltip]="'Sintaxe: ' + (result.checks.syntax ? 'OK' : 'Falhou')"
+                        [class]="result.checks.syntax ? 'check-pass' : 'check-fail'">
+                {{ result.checks.syntax ? 'check' : 'close' }}
+              </mat-icon>
+              <mat-icon [matTooltip]="'Domínio: ' + (result.checks.domain ? 'OK' : 'Falhou')"
+                        [class]="result.checks.domain ? 'check-pass' : 'check-fail'">
+                {{ result.checks.domain ? 'check' : 'close' }}
+              </mat-icon>
+              <mat-icon [matTooltip]="'MX Records: ' + (result.checks.mx ? 'OK' : 'Falhou')"
+                        [class]="result.checks.mx ? 'check-pass' : 'check-fail'">
+                {{ result.checks.mx ? 'check' : 'close' }}
+              </mat-icon>
+              <mat-icon [matTooltip]="'Descartável: ' + (result.checks.disposable ? 'Sim' : 'Não')"
+                        [class]="!result.checks.disposable ? 'check-pass' : 'check-fail'">
+                {{ !result.checks.disposable ? 'check' : 'close' }}
+              </mat-icon>
+              <mat-icon [matTooltip]="'Role Account: ' + (result.checks.role ? 'Sim' : 'Não')"
+                        [class]="!result.checks.role ? 'check-pass' : 'check-fail'">
+                {{ !result.checks.role ? 'check' : 'close' }}
+              </mat-icon>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="reason">
+          <th mat-header-cell *matHeaderCellDef>Motivo</th>
+          <td mat-cell *matCellDef="let result">{{ result.reason }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+      </table>
     </mat-card-content>
   </mat-card>
 </div>

@@ -1,28 +1,38 @@
 <div class="login-container">
   <mat-card class="login-card">
-    <mat-card-header>
-      <mat-card-title>
-        <span class="logo">🚀</span>
-        Spark Nexus
-      </mat-card-title>
-    </mat-card-header>
+    <div class="login-header">
+      <span class="logo">🚀</span>
+      <h1>Spark Nexus</h1>
+    </div>
+
     <mat-card-content>
       <h2>Entrar na sua conta</h2>
+      <p class="subtitle">Use demo@sparknexus.com / demo123</p>
+
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Email</mat-label>
-        <input matInput [(ngModel)]="email" type="email">
+        <input matInput [(ngModel)]="email" type="email" [disabled]="loading">
         <mat-icon matSuffix>email</mat-icon>
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Senha</mat-label>
-        <input matInput [(ngModel)]="password" type="password">
-        <mat-icon matSuffix>lock</mat-icon>
+        <input matInput [(ngModel)]="password" [type]="hidePassword ? 'password' : 'text'" [disabled]="loading">
+        <button mat-icon-button matSuffix (click)="hidePassword = !hidePassword" [disabled]="loading">
+          <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
       </mat-form-field>
 
-      <button mat-raised-button color="primary" class="full-width" (click)="login()">
-        Entrar
+      <button mat-raised-button color="primary" class="full-width login-button"
+              (click)="login()" [disabled]="loading">
+        <mat-spinner diameter="20" *ngIf="loading"></mat-spinner>
+        <span *ngIf="!loading">Entrar</span>
       </button>
+
+      <div class="extra-links">
+        <a href="#">Esqueceu a senha?</a>
+        <a href="#">Criar conta</a>
+      </div>
     </mat-card-content>
   </mat-card>
 </div>

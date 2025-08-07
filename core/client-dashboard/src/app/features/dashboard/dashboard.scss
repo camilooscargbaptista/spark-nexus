@@ -1,6 +1,15 @@
 .dashboard {
   max-width: 1400px;
   margin: 0 auto;
+  position: relative;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
 }
 
 .page-header {
@@ -23,7 +32,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
 }
 
 .stat-card {
@@ -73,6 +82,37 @@
   &.down { color: #ef4444; }
 }
 
+.charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card {
+  mat-card-header {
+    margin-bottom: 20px;
+  }
+
+  mat-card-title {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+  }
+}
+
+.chart-container {
+  position: relative;
+  height: 300px;
+
+  &.small {
+    height: 250px;
+  }
+}
+
 .content-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -115,6 +155,12 @@
   }
 }
 
+.module-description {
+  color: #64748b;
+  font-size: 14px;
+  margin: 10px 0;
+}
+
 .status-active {
   background: #d1fae5 !important;
   color: #065f46 !important;
@@ -134,7 +180,7 @@
   font-size: 18px;
   font-weight: 600;
   color: #1e293b;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .module-usage {

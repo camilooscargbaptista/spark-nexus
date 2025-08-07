@@ -7,34 +7,71 @@
 }
 
 .login-card {
-  width: 400px;
+  width: 100%;
+  max-width: 400px;
   padding: 20px;
 
-  mat-card-header {
-    justify-content: center;
-    margin-bottom: 20px;
+  .login-header {
+    text-align: center;
+    margin-bottom: 30px;
 
-    mat-card-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 24px;
+    .logo {
+      font-size: 48px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
       font-weight: 600;
-
-      .logo {
-        font-size: 32px;
-      }
+      color: #1e293b;
     }
   }
 
   h2 {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     color: #1e293b;
+    font-size: 20px;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #64748b;
+    font-size: 14px;
+    margin-bottom: 20px;
   }
 
   .full-width {
     width: 100%;
     margin-bottom: 16px;
+  }
+
+  .login-button {
+    height: 48px;
+    font-size: 16px;
+    margin-top: 10px;
+
+    mat-spinner {
+      display: inline-block;
+      margin-right: 8px;
+    }
+  }
+
+  .extra-links {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+
+    a {
+      color: #4f46e5;
+      text-decoration: none;
+      font-size: 14px;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
   }
 }
