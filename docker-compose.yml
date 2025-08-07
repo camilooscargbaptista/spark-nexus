@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   # ===========================================
-  # CORE INFRASTRUCTURE
+  # INFRASTRUCTURE
   # ===========================================
   
   postgres:
@@ -10,19 +8,18 @@ services:
     container_name: sparknexus-postgres
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER:-sparknexus}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
+      - POSTGRES_DB=sparknexus_core
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./shared/database/scripts/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh:ro
-      - ./shared/database/schemas:/schemas:ro
+      - ./shared/database/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh:ro
     ports:
       - "5432:5432"
     networks:
       - sparknexus-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparknexus}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,21 +28,26 @@ services:
     image: redis:7-alpine
     container_name: sparknexus-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-SparkRedis2024!}
     volumes:
       - redis_data:/data
     ports:
       - "6379:6379"
     networks:
       - sparknexus-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: sparknexus-rabbitmq
     restart: unless-stopped
     environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-sparknexus}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS:-SparkMQ2024!}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -62,12 +64,13 @@ services:
     build:
       context: ./core/auth-service
       dockerfile: Dockerfile
+    image: sparknexus/auth-service:latest
     container_name: sparknexus-auth
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sparknexus_core
-      - JWT_SECRET=${JWT_SECRET}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_core
+      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/0
       - PORT=3001
     ports:
       - "3001:3001"
@@ -81,10 +84,11 @@ services:
     build:
       context: ./core/billing-service
       dockerfile: Dockerfile
+    image: sparknexus/billing-service:latest
     container_name: sparknexus-billing
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sparknexus_core
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_core
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - PORT=3002
     ports:
@@ -99,10 +103,11 @@ services:
     build:
       context: ./core/tenant-service
       dockerfile: Dockerfile
+    image: sparknexus/tenant-service:latest
     container_name: sparknexus-tenant
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sparknexus_core
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_tenants
       - PORT=3003
     ports:
       - "3003:3003"
@@ -113,23 +118,61 @@ services:
         condition: service_healthy
 
   # ===========================================
+  # FRONTEND DASHBOARDS
+  # ===========================================
+
+  admin-dashboard:
+    build:
+      context: ./core/admin-dashboard
+      dockerfile: Dockerfile
+    image: sparknexus/admin-dashboard:latest
+    container_name: sparknexus-admin-dashboard
+    restart: unless-stopped
+    environment:
+      - PORT=4200
+      - API_GATEWAY_URL=http://localhost:8000
+    ports:
+      - "4200:4200"
+    networks:
+      - sparknexus-network
+
+  client-dashboard:
+    build:
+      context: ./core/client-dashboard
+      dockerfile: Dockerfile
+    image: sparknexus/client-dashboard:latest
+    container_name: sparknexus-client-dashboard
+    restart: unless-stopped
+    environment:
+      - PORT=4201
+      - API_GATEWAY_URL=http://localhost:8000
+    ports:
+      - "4201:4201"
+    networks:
+      - sparknexus-network
+
+  # ===========================================
   # MODULES
   # ===========================================
 
-  module-email-validator:
+  email-validator:
     build:
       context: ./modules/email-validator
       dockerfile: Dockerfile
-    container_name: sparknexus-mod-email
+    image: sparknexus/email-validator:latest
+    container_name: sparknexus-email-validator
     restart: unless-stopped
     environment:
       - MODULE_ID=email-validator
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/sparknexus_modules
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/3
-      - N8N_WEBHOOK_URL=http://n8n-email-validator:5678
-      - HUNTER_API_KEY=${HUNTER_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_modules
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/3
       - PORT=4001
+      - HUNTER_API_KEY=${HUNTER_API_KEY}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-noreply@sparknexus.com}
     ports:
       - "4001:4001"
     networks:
@@ -138,83 +181,84 @@ services:
       postgres:
         condition: service_healthy
 
-  n8n-email-validator:
+  email-validator-worker:
+    build:
+      context: ./modules/email-validator
+      dockerfile: Dockerfile.worker
+    image: sparknexus/email-validator-worker:latest
+    container_name: sparknexus-email-validator-worker
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-SparkRedis2024!}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_modules
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-noreply@sparknexus.com}
+      - HUNTER_API_KEY=${HUNTER_API_KEY}
+    networks:
+      - sparknexus-network
+    depends_on:
+      - redis
+      - postgres
+
+  # ===========================================
+  # API GATEWAY
+  # ===========================================
+
+  kong:
+    image: kong:latest
+    container_name: sparknexus-gateway
+    restart: unless-stopped
+    environment:
+      - KONG_DATABASE=off
+      - KONG_DECLARATIVE_CONFIG=/usr/local/kong/kong.yml
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001
+    volumes:
+      - ./infrastructure/kong.yml:/usr/local/kong/kong.yml:ro
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    networks:
+      - sparknexus-network
+
+  # ===========================================
+  # AUTOMATION
+  # ===========================================
+
+  n8n:
     image: n8nio/n8n:latest
-    container_name: sparknexus-n8n-email
+    container_name: sparknexus-n8n
     restart: unless-stopped
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin123}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://n8n:5678/
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=sparknexus_modules
-      - DB_POSTGRESDB_USER=${POSTGRES_USER}
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - DB_POSTGRESDB_SCHEMA=n8n_email_validator
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-sparknexus}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
     volumes:
       - n8n_data:/home/node/.n8n
     ports:
       - "5678:5678"
     networks:
       - sparknexus-network
-
-  # ===========================================
-  # FRONTEND
-  # ===========================================
-
-  admin-dashboard:
-    build:
-      context: ./core/admin-dashboard
-      dockerfile: Dockerfile.dev
-    container_name: sparknexus-admin
-    restart: unless-stopped
-    volumes:
-      - ./core/admin-dashboard:/app
-      - /app/node_modules
-    ports:
-      - "4200:4200"
-    environment:
-      - API_URL=http://localhost:3001
-    networks:
-      - sparknexus-network
-
-  client-dashboard:
-    build:
-      context: ./core/client-dashboard
-      dockerfile: Dockerfile.dev
-    container_name: sparknexus-client
-    restart: unless-stopped
-    volumes:
-      - ./core/client-dashboard:/app
-      - /app/node_modules
-    ports:
-      - "4201:4201"
-    environment:
-      - API_URL=http://localhost:3001
-    networks:
-      - sparknexus-network
-
-  # ===========================================
-  # API GATEWAY
-  # ===========================================
-
-  nginx:
-    image: nginx:alpine
-    container_name: sparknexus-gateway
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    volumes:
-      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    networks:
-      - sparknexus-network
     depends_on:
-      - auth-service
-      - billing-service
-      - tenant-service
-      - module-email-validator
+      - postgres
 
 volumes:
   postgres_data:

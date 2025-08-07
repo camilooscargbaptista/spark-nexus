@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de Emails - Spark Nexus</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .upload-card {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .upload-area {
+            border: 3px dashed #0093E9;
+            border-radius: 10px;
+            padding: 3rem;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin: 2rem 0;
+        }
+        .upload-area:hover {
+            background: #f0f8ff;
+            border-color: #0077c7;
+        }
+        .upload-area.dragover {
+            background: #e3f2fd;
+            border-color: #0077c7;
+        }
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        .file-input {
+            display: none;
+        }
+        .form-group {
+            margin: 1.5rem 0;
+        }
+        label {
+            display: block;
+            color: #555;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        input[type="email"] {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border 0.3s;
+        }
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #0093E9;
+        }
+        .btn {
+            background: linear-gradient(135deg, #0093E9 0%, #0077c7 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .file-info {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+            display: none;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0093E9 0%, #80D0C7 100%);
+            transition: width 0.3s;
+            width: 0%;
+        }
+        .result-box {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            display: none;
+        }
+        .error-box {
+            background: #ffebee;
+            border: 2px solid #f44336;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="upload-card">
+            <h1>📧 Validação de Emails em Lote</h1>
+            <p style="text-align: center; color: #666; margin-bottom: 2rem;">
+                Faça upload de um arquivo CSV ou Excel com emails para validação
+            </p>
+
+            <form id="uploadForm">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <p style="font-size: 1.2rem; color: #333; margin-bottom: 0.5rem;">
+                        Arraste seu arquivo aqui
+                    </p>
+                    <p style="color: #666;">ou clique para selecionar</p>
+                    <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx,.xls,.txt">
+                </div>
+
+                <div class="file-info" id="fileInfo">
+                    <strong>Arquivo selecionado:</strong> <span id="fileName"></span><br>
+                    <strong>Tamanho:</strong> <span id="fileSize"></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Seu email para receber o relatório:</label>
+                    <input type="email" id="email" name="email" required 
+                           placeholder="seu-email@empresa.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="organizationId">ID da Organização (opcional):</label>
+                    <input type="text" id="organizationId" name="organizationId" 
+                           placeholder="demo" value="demo">
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    🚀 Iniciar Validação
+                </button>
+            </form>
+
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+
+            <div class="result-box" id="resultBox">
+                <h3>✅ Upload Concluído!</h3>
+                <p id="resultMessage"></p>
+            </div>
+
+            <div class="error-box" id="errorBox">
+                <h3>❌ Erro no Upload</h3>
+                <p id="errorMessage"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const submitBtn = document.getElementById('submitBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const resultBox = document.getElementById('resultBox');
+        const resultMessage = document.getElementById('resultMessage');
+        const errorBox = document.getElementById('errorBox');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // File selected
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            // Validate file type
+            const validTypes = ['.csv', '.xlsx', '.xls', '.txt'];
+            const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+            
+            if (!validTypes.includes(fileExt)) {
+                showError('Tipo de arquivo inválido. Use CSV, Excel ou TXT.');
+                return;
+            }
+
+            // Validate file size (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showError('Arquivo muito grande. Máximo 10MB.');
+                return;
+            }
+
+            // Show file info
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.style.display = 'block';
+            
+            // Store file for upload
+            fileInput.files = new DataTransfer().files;
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        // Form submit
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                showError('Por favor, selecione um arquivo.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('email', document.getElementById('email').value);
+            formData.append('organizationId', document.getElementById('organizationId').value || 'demo');
+
+            // Disable button
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Enviando...';
+            
+            // Show progress
+            progressBar.style.display = 'block';
+            progressFill.style.width = '0%';
+            
+            // Hide previous messages
+            resultBox.style.display = 'none';
+            errorBox.style.display = 'none';
+
+            try {
+                // Simulate progress
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += 10;
+                    if (progress <= 90) {
+                        progressFill.style.width = progress + '%';
+                    }
+                }, 200);
+
+                const response = await fetch('http://localhost:4001/upload-and-validate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(data);
+                } else {
+                    showError(data.error || 'Erro no upload');
+                }
+            } catch (error) {
+                showError('Erro de conexão: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 Iniciar Validação';
+                
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                }, 1000);
+            }
+        });
+
+        function showSuccess(data) {
+            resultMessage.innerHTML = `
+                <strong>Job ID:</strong> ${data.jobId}<br>
+                <strong>Emails encontrados:</strong> ${data.emailCount}<br>
+                <strong>Tempo estimado:</strong> ${data.estimatedTime}<br>
+                <strong>Relatório será enviado para:</strong> ${data.resultWillBeSentTo}<br><br>
+                <em>Você receberá o relatório completo por email quando o processamento terminar.</em>
+            `;
+            resultBox.style.display = 'block';
+            
+            // Reset form
+            uploadForm.reset();
+            fileInfo.style.display = 'none';
+            fileInput.value = '';
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorBox.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

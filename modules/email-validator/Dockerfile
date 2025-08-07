@@ -2,17 +2,20 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiar arquivos de dependências
+# Copiar package.json
 COPY package*.json ./
 
 # Instalar dependências
-RUN npm install --production
+RUN npm install
 
 # Copiar código
 COPY . .
+
+# Criar diretórios necessários
+RUN mkdir -p uploads reports
 
 # Expor porta
 EXPOSE 4001
 
 # Comando para iniciar
-CMD ["node", "src/index.js"]
+CMD ["npm", "start"]

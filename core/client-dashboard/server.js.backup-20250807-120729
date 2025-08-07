@@ -1,0 +1,51 @@
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const axios = require('axios');
+
+const app = express();
+const PORT = process.env.PORT || 4201;
+
+// CORS configurado corretamente
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+}));
+
+app.use(express.json());
+app.use(express.static('public'));
+
+// Servir o dashboard HTML
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Proxy para Email Validator - IMPORTANTE
+app.post('/api/validate-email', async (req, res) => {
+  try {
+    const response = await axios.post('http://email-validator:4001/validate', req.body);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error calling email validator:', error.message);
+    res.status(500).json({ error: 'Failed to validate email' });
+  }
+});
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    service: 'client-dashboard',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Client Dashboard running on http://localhost:${PORT}`);
+});
+
+// Servir página de upload
+app.get('/upload', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'upload.html'));
+});

@@ -1,0 +1,98 @@
+{
+  "name": "Email Validator Complete Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "email-validate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "webhookId": "email-validate-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "const email = $input.item.json.email;\nconst domain = email.split('@')[1];\n\n// Check if disposable\nconst disposableDomains = [\n  'tempmail.com',\n  'throwaway.email',\n  '10minutemail.com'\n];\n\nconst isDisposable = disposableDomains.includes(domain);\n\nreturn {\n  email,\n  domain,\n  isDisposable\n};"
+      },
+      "name": "Process Email",
+      "type": "n8n-nodes-base.function",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$env.HUNTER_API_KEY}}",
+              "operation": "notEmpty"
+            }
+          ]
+        }
+      },
+      "name": "Has Hunter API?",
+      "type": "n8n-nodes-base.if",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/email-verifier",
+        "method": "GET",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{$json.email}}"
+            },
+            {
+              "name": "api_key",
+              "value": "={{$env.HUNTER_API_KEY}}"
+            }
+          ]
+        }
+      },
+      "name": "Hunter.io Validation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Combine all results\nconst email = $input.item.json.email;\nconst hunterResult = $input.item.json.hunterResult || null;\nconst isDisposable = $input.item.json.isDisposable;\n\nlet score = 50;\nlet valid = true;\nconst checks = {\n  disposable: !isDisposable,\n  hunter: null\n};\n\nif (!checks.disposable) {\n  score -= 30;\n  valid = false;\n}\n\nif (hunterResult) {\n  checks.hunter = hunterResult.result === 'deliverable';\n  if (checks.hunter) {\n    score += 30;\n  } else {\n    score -= 20;\n    valid = false;\n  }\n}\n\nreturn {\n  email,\n  valid,\n  score,\n  checks\n};"
+      },
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.function",
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "mode": "responseNode",
+        "responseCode": 200,
+        "responseData": "={{$json}}"
+      },
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{"node": "Process Email", "type": "main", "index": 0}]]
+    },
+    "Process Email": {
+      "main": [[{"node": "Has Hunter API?", "type": "main", "index": 0}]]
+    },
+    "Has Hunter API?": {
+      "main": [
+        [{"node": "Hunter.io Validation", "type": "main", "index": 0}],
+        [{"node": "Combine Results", "type": "main", "index": 0}]
+      ]
+    },
+    "Hunter.io Validation": {
+      "main": [[{"node": "Combine Results", "type": "main", "index": 0}]]
+    },
+    "Combine Results": {
+      "main": [[{"node": "Send Response", "type": "main", "index": 0}]]
+    }
+  }
+}

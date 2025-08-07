@@ -1,0 +1,53 @@
+{
+  "name": "Batch Email Processor",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "batch-process",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Split emails into batches\nconst emails = $input.item.json.emails;\nconst batchSize = 100;\nconst batches = [];\n\nfor (let i = 0; i < emails.length; i += batchSize) {\n  batches.push(emails.slice(i, i + batchSize));\n}\n\nreturn batches.map(batch => ({ batch }));"
+      },
+      "name": "Create Batches",
+      "type": "n8n-nodes-base.function",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Process Each Batch",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://email-validator:4001/validate",
+        "method": "POST",
+        "body": {
+          "emails": "={{$json.batch}}",
+          "organizationId": "={{$input.first().json.organizationId}}"
+        }
+      },
+      "name": "Validate Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aggregate all results\nconst allResults = [];\n\n$input.all().forEach(item => {\n  if (item.json.results) {\n    allResults.push(...item.json.results);\n  }\n});\n\nreturn [{\n  totalProcessed: allResults.length,\n  results: allResults,\n  summary: {\n    valid: allResults.filter(r => r.valid).length,\n    invalid: allResults.filter(r => !r.valid).length\n  }\n}];"
+      },
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.function",
+      "position": [1050, 300]
+    }
+  ]
+}
