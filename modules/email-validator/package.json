@@ -1,14 +1,17 @@
 {
-  "name": "sparknexus-module-email-validator",
+  "name": "email-validator-module",
   "version": "1.0.0",
+  "description": "Spark Nexus Email Validator Module",
   "scripts": {
-    "start": "node src/main.js",
-    "dev": "nodemon src/main.js"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "axios": "^1.6.0",
-    "pg": "^8.11.0",
-    "redis": "^4.6.0"
+    "cors": "^2.8.5",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
   }
 }

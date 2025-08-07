@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spark Nexus - Admin Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        .header p {
+            color: #666;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .status.online {
+            background: #10b981;
+            color: white;
+        }
+        .status.offline {
+            background: #ef4444;
+            color: white;
+        }
+        .services-list {
+            list-style: none;
+            margin-top: 1rem;
+        }
+        .services-list li {
+            padding: 0.75rem;
+            background: #f9fafb;
+            margin-bottom: 0.5rem;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #5a67d8;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 5px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Spark Nexus Platform</h1>
+            <p>Admin Dashboard - Sistema Multi-tenant Modular</p>
+        </div>
+        
+        <div class="dashboard">
+            <!-- Services Status -->
+            <div class="card">
+                <h3>⚡ Status dos Serviços</h3>
+                <ul class="services-list" id="services-status">
+                    <li>Auth Service <span class="status" id="auth-status">Checking...</span></li>
+                    <li>Billing Service <span class="status" id="billing-status">Checking...</span></li>
+                    <li>Tenant Service <span class="status" id="tenant-status">Checking...</span></li>
+                    <li>Email Validator <span class="status" id="email-status">Checking...</span></li>
+                    <li>API Gateway <span class="status" id="gateway-status">Checking...</span></li>
+                </ul>
+            </div>
+
+            <!-- Platform Stats -->
+            <div class="card">
+                <h3>📊 Estatísticas</h3>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-value" id="total-orgs">0</div>
+                        <div class="stat-label">Organizações</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="total-users">0</div>
+                        <div class="stat-label">Usuários</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="active-modules">5</div>
+                        <div class="stat-label">Módulos Ativos</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="api-calls">0</div>
+                        <div class="stat-label">API Calls (24h)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <h3>🎯 Ações Rápidas</h3>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <button class="btn" onclick="window.open('http://localhost:5678', '_blank')">
+                        📝 Abrir N8N Workflows
+                    </button>
+                    <button class="btn" onclick="window.open('http://localhost:15672', '_blank')">
+                        📬 RabbitMQ Management
+                    </button>
+                    <button class="btn" onclick="testServices()">
+                        🔄 Recarregar Status
+                    </button>
+                </div>
+            </div>
+
+            <!-- Available Modules -->
+            <div class="card">
+                <h3>📦 Módulos Disponíveis</h3>
+                <ul class="services-list">
+                    <li>📧 Email Validator Pro <span class="status online">Active</span></li>
+                    <li>🔗 CRM Connector <span class="status offline">Inactive</span></li>
+                    <li>📈 Lead Scorer AI <span class="status offline">Inactive</span></li>
+                    <li>💾 Data Enrichment <span class="status offline">Inactive</span></li>
+                    <li>📤 Campaign Manager <span class="status offline">Inactive</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check service status
+        async function checkServiceStatus(url, elementId) {
+            try {
+                const response = await fetch(url);
+                const element = document.getElementById(elementId);
+                if (response.ok) {
+                    element.textContent = 'Online';
+                    element.className = 'status online';
+                } else {
+                    element.textContent = 'Offline';
+                    element.className = 'status offline';
+                }
+            } catch (error) {
+                const element = document.getElementById(elementId);
+                element.textContent = 'Offline';
+                element.className = 'status offline';
+            }
+        }
+
+        // Test all services
+        async function testServices() {
+            checkServiceStatus('http://localhost:3001/health', 'auth-status');
+            checkServiceStatus('http://localhost:3002/health', 'billing-status');
+            checkServiceStatus('http://localhost:3003/health', 'tenant-status');
+            checkServiceStatus('http://localhost:4001/health', 'email-status');
+            checkServiceStatus('http://localhost:8000', 'gateway-status');
+            
+            // Update stats (mock data for now)
+            document.getElementById('total-orgs').textContent = Math.floor(Math.random() * 100) + 10;
+            document.getElementById('total-users').textContent = Math.floor(Math.random() * 500) + 100;
+            document.getElementById('api-calls').textContent = Math.floor(Math.random() * 10000) + 1000;
+        }
+
+        // Test services on load
+        window.onload = () => {
+            testServices();
+            // Refresh every 30 seconds
+            setInterval(testServices, 30000);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+_format_version: "3.0"
+
+services:
+  - name: auth-service
+    url: http://auth-service:3001
+    routes:
+      - name: auth-route
+        paths:
+          - /auth
+        strip_path: true
+
+  - name: billing-service
+    url: http://billing-service:3002
+    routes:
+      - name: billing-route
+        paths:
+          - /billing
+        strip_path: true
+
+  - name: tenant-service
+    url: http://tenant-service:3003
+    routes:
+      - name: tenant-route
+        paths:
+          - /tenant
+        strip_path: true
+
+  - name: email-validator
+    url: http://email-validator:4001
+    routes:
+      - name: email-validator-route
+        paths:
+          - /modules/email-validator
+        strip_path: true
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - http://localhost:4200
+        - http://localhost:4201
+      methods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - X-Auth-Token
+        - X-Api-Key
+      credentials: true
+
+  - name: rate-limiting
+    config:
+      second: 10
+      hour: 1000
+      policy: local
