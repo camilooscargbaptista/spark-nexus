@@ -15,18 +15,18 @@
             transition: all 0.3s;
             cursor: pointer;
         }
-        
+
         .upload-area:hover,
         .upload-area.dragover {
             border-color: var(--primary-color);
             background: #edf2ff;
         }
-        
+
         .upload-icon {
             font-size: 64px;
             margin-bottom: 20px;
         }
-        
+
         .file-info {
             margin-top: 20px;
             padding: 20px;
@@ -34,12 +34,12 @@
             border-radius: 10px;
             display: none;
         }
-        
+
         .validation-results {
             margin-top: 30px;
             display: none;
         }
-        
+
         .result-item {
             padding: 15px;
             margin: 10px 0;
@@ -50,11 +50,11 @@
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .result-valid {
             border-color: var(--success-color);
         }
-        
+
         .result-invalid {
             border-color: var(--danger-color);
         }
@@ -81,7 +81,7 @@
             <p style="color: #718096; margin-bottom: 30px;">
                 Faça upload de um arquivo CSV com emails para validação
             </p>
-            
+
             <!-- Upload Area -->
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📁</div>
@@ -90,7 +90,7 @@
                 <input type="file" id="fileInput" accept=".csv" style="display: none;">
                 <button class="btn btn-primary">Selecionar Arquivo CSV</button>
             </div>
-            
+
             <!-- File Info -->
             <div class="file-info" id="fileInfo">
                 <h3>📄 Arquivo Selecionado</h3>
@@ -101,13 +101,13 @@
                     🚀 Iniciar Validação
                 </button>
             </div>
-            
+
             <!-- Organization ID -->
             <div class="form-group" style="margin-top: 20px;">
                 <label>ID da Organização (opcional)</label>
                 <input type="text" id="organizationId" placeholder="demo" value="demo">
             </div>
-            
+
             <!-- Single Email Test -->
             <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e2e8f0;">
                 <h3>Testar Email Único</h3>
@@ -118,7 +118,7 @@
                     </button>
                 </div>
             </div>
-            
+
             <!-- Results -->
             <div class="validation-results" id="validationResults">
                 <h3>📊 Resultados da Validação</h3>
@@ -139,44 +139,44 @@
         // Setup upload area
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
-        
+
         uploadArea.addEventListener('click', () => fileInput.click());
-        
+
         fileInput.addEventListener('change', (e) => {
             handleFile(e.target.files[0]);
         });
-        
+
         // Drag and drop
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             uploadArea.classList.add('dragover');
         });
-        
+
         uploadArea.addEventListener('dragleave', () => {
             uploadArea.classList.remove('dragover');
         });
-        
+
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
             handleFile(e.dataTransfer.files[0]);
         });
-        
+
         function handleFile(file) {
             if (!file) return;
-            
+
             if (!file.name.endsWith('.csv')) {
                 alert('Por favor, selecione um arquivo CSV');
                 return;
             }
-            
+
             selectedFile = file;
-            
+
             // Show file info
             document.getElementById('fileInfo').style.display = 'block';
             document.getElementById('fileName').textContent = `Nome: ${file.name}`;
             document.getElementById('fileSize').textContent = `Tamanho: ${(file.size / 1024).toFixed(2)} KB`;
-            
+
             // Count emails in file
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -185,35 +185,37 @@
             };
             reader.readAsText(file);
         }
-        
+
         async function startValidation() {
             if (!selectedFile) {
                 alert('Por favor, selecione um arquivo');
                 return;
             }
-            
+
             const formData = new FormData();
             formData.append('file', selectedFile);
             formData.append('organizationId', document.getElementById('organizationId').value);
-            
+
             try {
                 const response = await auth.authenticatedFetch('/api/upload', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     alert(`✅ ${result.message}\n\nJob ID: ${result.jobId}`);
-                    
+
                     // Show preview results
                     if (result.emails && result.emails.length > 0) {
-                        showResults(result.emails.map(email => ({
-                            email,
-                            valid: Math.random() > 0.3,
-                            score: Math.floor(Math.random() * 100)
-                        })));
+                        showResults(result.emails.map(item => {
+                            return {
+                                email: item.email,
+                                valid: item.valid,
+                                score: item.score,
+                            };
+                        }));
                     }
                 } else {
                     alert(`❌ Erro: ${result.error}`);
@@ -222,15 +224,15 @@
                 alert(`❌ Erro ao enviar arquivo: ${error.message}`);
             }
         }
-        
+
         async function validateSingleEmail() {
             const email = document.getElementById('singleEmail').value;
-            
+
             if (!email) {
                 alert('Por favor, digite um email');
                 return;
             }
-            
+
             try {
                 const response = await auth.authenticatedFetch('/api/validate/single', {
                     method: 'POST',
@@ -239,9 +241,9 @@
                     },
                     body: JSON.stringify({ email })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     showResults([result]);
                 } else {
@@ -251,11 +253,11 @@
                 alert(`❌ Erro ao validar: ${error.message}`);
             }
         }
-        
+
         function showResults(results) {
             const resultsDiv = document.getElementById('validationResults');
             const resultsList = document.getElementById('resultsList');
-            
+
             resultsDiv.style.display = 'block';
             resultsList.innerHTML = results.map(r => `
                 <div class="result-item ${r.valid ? 'result-valid' : 'result-invalid'}">
@@ -264,7 +266,7 @@
                 </div>
             `).join('');
         }
-        
+
         function showProfile() {
             const user = auth.getUser();
             alert(`Perfil:\n\nNome: ${user.firstName || 'Demo'} ${user.lastName || 'User'}\nEmail: ${user.email || 'demo@sparknexus.com'}\nEmpresa: ${user.company || 'Spark Nexus'}`);

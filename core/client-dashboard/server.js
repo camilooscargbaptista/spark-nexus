@@ -21,6 +21,10 @@ const EmailService = require('./services/emailService');
 const SMSService = require('./services/smsService');
 const Validators = require('./services/validators');
 
+// Validador Aprimorado
+const EnhancedValidator = require('./enhancedValidator');
+const enhancedValidator = new EnhancedValidator();
+
 // Inicializar Express
 const app = express();
 const PORT = process.env.CLIENT_DASHBOARD_PORT || 4201;
@@ -615,11 +619,24 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
         // Criar job de validação
         const jobId = uuidv4();
 
+
+
+
+                // Processar emails com validador aprimorado
+                const validationPromises = emails.map(email => enhancedValidator.validateEmail(email));
+                const validationResults = await Promise.all(validationPromises);
+
+                console.log('validationResults -----: ', validationResults)
+
+                // Estatísticas
+                const validCount = validationResults.filter(r => r.valid).length;
+                const avgScore = validationResults.reduce((acc, r) => acc + r.score, 0) / validationResults.length;
+
         res.json({
             success: true,
             message: `${emails.length} emails enviados para validação`,
             jobId,
-            emails: emails.slice(0, 5) // Preview
+            emails: validationResults
         });
     } catch (error) {
         console.error('Erro no upload:', error);
@@ -639,24 +656,60 @@ app.post('/api/validate/single', authenticateToken, [
     try {
         const { email } = req.body;
 
-        // Validação básica
-        const validation = Validators.validateEmail(email);
+        // Usar o validador aprimorado
+        const result = await enhancedValidator.validateEmail(email);
 
-        // Aqui você pode adicionar validações mais avançadas
-        // como verificação de MX, SMTP, etc.
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao validar email' });
+    }
+});
+
+
+// Validação avançada
+app.post('/api/validate/advanced', async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ error: 'Email é obrigatório' });
+        }
+
+        const result = await enhancedValidator.validateEmail(email);
+        res.json(result);
+    } catch (error) {
+        console.error('Erro na validação avançada:', error);
+        res.status(500).json({ error: 'Erro ao validar email' });
+    }
+});
+
+// Validação em lote
+app.post('/api/validate/batch', async (req, res) => {
+    try {
+        const { emails } = req.body;
+
+        if (!emails || !Array.isArray(emails)) {
+            return res.status(400).json({ error: 'Lista de emails é obrigatória' });
+        }
+
+        if (emails.length > 100) {
+            return res.status(400).json({ error: 'Máximo de 100 emails por lote' });
+        }
+
+        const results = await enhancedValidator.validateBatch(emails);
 
         res.json({
-            email,
-            valid: validation.valid,
-            score: validation.valid ? 85 : 15,
-            checks: {
-                format: true,
-                disposable: validation.isDisposable,
-                domain: validation.domain
+            total: emails.length,
+            results: results,
+            summary: {
+                valid: results.filter(r => r.valid).length,
+                invalid: results.filter(r => !r.valid).length,
+                avgScore: Math.round(results.reduce((acc, r) => acc + r.score, 0) / results.length)
             }
         });
     } catch (error) {
-        res.status(500).json({ error: 'Erro ao validar email' });
+        console.error('Erro na validação em lote:', error);
+        res.status(500).json({ error: 'Erro ao validar lote' });
     }
 });
 
