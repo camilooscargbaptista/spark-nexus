@@ -3,6 +3,7 @@
 // ================================================
 
 const { Pool } = require('pg');
+const redis = require('redis');
 const bcrypt = require('bcryptjs');
 
 class DatabaseService {
@@ -14,23 +15,23 @@ class DatabaseService {
             ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
         });
 
-        // Redis desabilitado temporariamente
-        this.redis = { 
-            isOpen: false,
-            get: async () => null,
-            set: async () => null,
-            setEx: async () => null,
-            del: async () => null,
-            quit: async () => null
-        };
-        
-        // Não chamar setupRedis por enquanto
-        // this.setupRedis();
+        // Configurar Redis
+        this.setupRedis();
     }
 
     async setupRedis() {
-        // Desabilitado temporariamente
-        console.log('Redis desabilitado temporariamente');
+        // this.redis = redis.createClient({
+        //     url: process.env.REDIS_URL || 'redis://:SparkRedis2024!@postgres:6379'
+        // });
+
+        // this.redis.on('error', (err) => console.error('Redis Error:', err));
+
+        // try {
+        //     await this.redis.connect();
+        //     console.log('✅ Redis conectado');
+        // } catch (error) {
+        //     console.error('❌ Erro ao conectar Redis:', error);
+        // }
     }
 
     // ================================================
@@ -191,12 +192,27 @@ class DatabaseService {
             userId, token, ipAddress, userAgent, expires
         ]);
 
+        // Salvar no Redis para acesso rápido
+        if (this.redis && this.redis.isOpen) {
+            await this.redis.setEx(`session:${token}`, 86400, JSON.stringify({
+                userId, ipAddress, userAgent
+            }));
+        }
+
         return result.rows[0];
     }
 
     // Validar sessão
     async validateSession(token) {
-        // Se não tem Redis, ir direto ao banco
+        // Primeiro verificar no Redis
+        if (this.redis && this.redis.isOpen) {
+            const cached = await this.redis.get(`session:${token}`);
+            if (cached) {
+                return JSON.parse(cached);
+            }
+        }
+
+        // Se não estiver no cache, buscar no banco
         const query = `
             SELECT s.*, u.email, u.first_name, u.last_name
             FROM auth.sessions s
@@ -205,6 +221,12 @@ class DatabaseService {
         `;
 
         const result = await this.pool.query(query, [token]);
+
+        if (result.rows[0] && this.redis && this.redis.isOpen) {
+            // Cachear para próximas requisições
+            await this.redis.setEx(`session:${token}`, 3600, JSON.stringify(result.rows[0]));
+        }
+
         return result.rows[0];
     }
 

@@ -1,0 +1,11 @@
+#!/bin/bash
+echo "📊 Monitorando Client Dashboard..."
+echo ""
+echo "Container status:"
+docker ps | grep client || echo "❌ Container não está rodando"
+echo ""
+echo "Últimos logs:"
+docker logs --tail=5 $(docker ps --format "{{.Names}}" | grep -E "client" | head -1) 2>&1 | grep -v "GET\|POST"
+echo ""
+echo "API Health:"
+curl -s http://localhost:4201/api/health | python3 -m json.tool 2>/dev/null || echo "❌ API não responde"
