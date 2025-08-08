@@ -1,0 +1,16 @@
+_format_version: "2.1"
+
+services:
+- name: email-validator-api
+  url: http://sparknexus-email-validator-api:4200
+  routes:
+  - name: email-validator-route
+    paths:
+    - /api/email
+    
+- name: client-dashboard
+  url: http://sparknexus-client-dashboard:4201
+  routes:
+  - name: client-route
+    paths:
+    - /

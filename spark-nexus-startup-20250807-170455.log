@@ -1,0 +1,8 @@
+Spark Nexus - Log de Inicialização - Qui  7 Ago 2025 17:04:55 -03
+[0;36mIniciando Spark Nexus...[0m
+[0;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;36m
+[1/12] Verificando pré-requisitos...[0m
+[0;32m✅ Docker OK[0m
+[0;32m✅ docker-compose OK[0m
+[0;32m✅ docker-compose.yml encontrado[0m

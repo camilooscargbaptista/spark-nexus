@@ -1,0 +1,41 @@
+[0;36mIniciando Spark Nexus em macos...[0m
+[0;36m
+[1/10] Verificando pré-requisitos...[0m
+[0;32m✅ Docker OK[0m
+[0;32m✅ docker-compose OK[0m
+[0;32m✅ docker-compose.yml encontrado[0m
+[0;32m✅ Espaço em disco OK (633GB disponível)[0m
+[0;36m
+[2/10] Preparando ambiente...[0m
+[0;36mArquivo .env já existe[0m
+[0;32m✅ Ambiente preparado[0m
+[0;36m
+[3/10] Parando containers existentes...[0m
+[0;32m✅ Containers parados[0m
+[0;36m
+[4/10] Iniciando PostgreSQL...[0m
+[0;32m✅ PostgreSQL pronto[0m
+[0;36m
+[5/10] Configurando banco de dados...[0m
+[0;32m✅ Banco configurado[0m
+[0;36m
+[6/10] Iniciando infraestrutura...[0m
+[0;32m✅ Redis pronto[0m
+[0;32m✅ Infraestrutura iniciada[0m
+[0;36m
+[7/10] Iniciando serviços core...[0m
+[0;32m✅ auth-service iniciado[0m
+[0;32m✅ billing-service iniciado[0m
+[0;32m✅ tenant-service iniciado[0m
+[0;36m
+[8/10] Iniciando dashboards...[0m
+[0;32m✅ admin-dashboard iniciado[0m
+[0;32m✅ client-dashboard iniciado[0m
+[0;36m
+[9/10] Iniciando módulos...[0m
+[0;32m✅ email-validator iniciado[0m
+[0;32m✅ n8n iniciado[0m
+[0;36m
+[10/10] Verificando status...[0m
+[0;36mContainers rodando:       10[0m
+[0;32m✅ Sistema iniciado[0m

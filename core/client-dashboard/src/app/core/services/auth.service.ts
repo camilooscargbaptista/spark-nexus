@@ -41,6 +41,8 @@ export class AuthService {
   }
 
   login(email: string, password: string): Observable<LoginResponse> {
+
+    console.log('login ----------------')
     // Por enquanto, simula login
     return new Observable(observer => {
       setTimeout(() => {

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Spark Nexus</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            width: 400px;
+            max-width: 90%;
+        }
+        
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .login-header h1 {
+            color: white;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .login-header p {
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+        }
+        
+        .login-form {
+            padding: 40px 30px;
+        }
+        
+        .btn-login {
+            width: 100%;
+            margin-top: 20px;
+        }
+        
+        .signup-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+        
+        .signup-link a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>🚀 Spark Nexus</h1>
+            <p>Faça login para acessar o portal</p>
+        </div>
+        
+        <div class="login-form">
+            <div id="alertBox" class="alert"></div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required placeholder="seu@email.com">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" name="password" required placeholder="••••••••">
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-login">Entrar</button>
+            </form>
+            
+            <div class="signup-link">
+                Não tem uma conta? <a href="/register">Cadastre-se agora</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        // Verificar se já está logado
+        if (auth.isAuthenticated()) {
+            window.location.href = '/';
+        }
+
+        // Handle login form
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const alertBox = document.getElementById('alertBox');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            alertBox.style.display = 'none';
+            
+            try {
+                await auth.login(email, password);
+                
+                alertBox.className = 'alert alert-success';
+                alertBox.textContent = 'Login realizado com sucesso! Redirecionando...';
+                alertBox.style.display = 'block';
+                
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+            } catch (error) {
+                alertBox.className = 'alert alert-error';
+                alertBox.textContent = error.message;
+                alertBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

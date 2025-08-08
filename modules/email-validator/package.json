@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "Complete Email Validator with Upload",
   "scripts": {
-    "start": "node src/index.js",
+    "worker": "node worker.js",    "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
