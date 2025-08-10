@@ -20,7 +20,7 @@ const DatabaseService = require('./services/database');
 const EmailService = require('./services/emailService');
 const SMSService = require('./services/smsService');
 const Validators = require('./services/validators');
-const ReportService = require('./services/reportServiceSimple');
+const ReportService = require('./services/reportService');
 
 // Validador Aprimorado
 const EnhancedValidator = require('./enhancedValidator');

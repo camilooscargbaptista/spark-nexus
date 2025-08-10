@@ -1,0 +1,1084 @@
+{
+  "premium": {
+    "com": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "premium",
+      "weight": 1
+    },
+    "org": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "premium",
+      "weight": 0.95
+    },
+    "net": {
+      "score": 8,
+      "trust": "high",
+      "category": "premium",
+      "weight": 0.9
+    },
+    "edu": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1
+    },
+    "gov": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1
+    }
+  },
+  "regional_brazil": {
+    "com.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "regional",
+      "weight": 0.95
+    },
+    "org.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1
+    },
+    "edu.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1
+    },
+    "net.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.85
+    },
+    "emp.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "business",
+      "weight": 0.9
+    },
+    "ind.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "industry",
+      "weight": 0.9
+    }
+  },
+  "regional_trusted": {
+    "co.uk": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "de": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "fr": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "it": {
+      "score": 7,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.85
+    },
+    "es": {
+      "score": 7,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.85
+    },
+    "ca": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "au": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "jp": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "cn": {
+      "score": 6,
+      "trust": "medium",
+      "category": "regional",
+      "weight": 0.7
+    },
+    "in": {
+      "score": 6,
+      "trust": "medium",
+      "category": "regional",
+      "weight": 0.7
+    },
+    "ru": {
+      "score": 5,
+      "trust": "medium",
+      "category": "regional",
+      "weight": 0.6
+    }
+  },
+  "business": {
+    "io": {
+      "score": 7,
+      "trust": "high",
+      "category": "tech",
+      "weight": 0.85
+    },
+    "ai": {
+      "score": 7,
+      "trust": "high",
+      "category": "tech",
+      "weight": 0.85
+    },
+    "tech": {
+      "score": 7,
+      "trust": "high",
+      "category": "tech",
+      "weight": 0.85
+    },
+    "dev": {
+      "score": 7,
+      "trust": "high",
+      "category": "tech",
+      "weight": 0.85
+    },
+    "app": {
+      "score": 6,
+      "trust": "medium",
+      "category": "tech",
+      "weight": 0.75
+    },
+    "biz": {
+      "score": 5,
+      "trust": "medium",
+      "category": "business",
+      "weight": 0.6
+    },
+    "info": {
+      "score": 5,
+      "trust": "medium",
+      "category": "generic",
+      "weight": 0.6
+    },
+    "co": {
+      "score": 6,
+      "trust": "medium",
+      "category": "generic",
+      "weight": 0.7
+    },
+    "me": {
+      "score": 5,
+      "trust": "medium",
+      "category": "personal",
+      "weight": 0.6
+    }
+  },
+  "new_gtlds": {
+    "xyz": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "top": {
+      "score": 2,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.3
+    },
+    "site": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "online": {
+      "score": 4,
+      "trust": "medium",
+      "category": "new_gtld",
+      "weight": 0.5
+    },
+    "store": {
+      "score": 5,
+      "trust": "medium",
+      "category": "commerce",
+      "weight": 0.6
+    },
+    "shop": {
+      "score": 5,
+      "trust": "medium",
+      "category": "commerce",
+      "weight": 0.6
+    },
+    "blog": {
+      "score": 4,
+      "trust": "medium",
+      "category": "content",
+      "weight": 0.5
+    },
+    "club": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "fun": {
+      "score": 2,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.3
+    },
+    "live": {
+      "score": 4,
+      "trust": "medium",
+      "category": "media",
+      "weight": 0.5
+    },
+    "pro": {
+      "score": 6,
+      "trust": "medium",
+      "category": "professional",
+      "weight": 0.7
+    },
+    "email": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "cloud": {
+      "score": 5,
+      "trust": "medium",
+      "category": "tech",
+      "weight": 0.6
+    },
+    "digital": {
+      "score": 4,
+      "trust": "medium",
+      "category": "tech",
+      "weight": 0.5
+    }
+  },
+  "suspicious": {
+    "tk": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    },
+    "ml": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    },
+    "ga": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    },
+    "cf": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    },
+    "click": {
+      "score": 2,
+      "trust": "very_low",
+      "category": "spam",
+      "weight": 0.2
+    },
+    "download": {
+      "score": 2,
+      "trust": "very_low",
+      "category": "spam",
+      "weight": 0.2
+    },
+    "review": {
+      "score": 2,
+      "trust": "low",
+      "category": "spam",
+      "weight": 0.3
+    },
+    "work": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "men": {
+      "score": 2,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.3
+    },
+    "loan": {
+      "score": 2,
+      "trust": "very_low",
+      "category": "spam",
+      "weight": 0.2
+    },
+    "bid": {
+      "score": 2,
+      "trust": "low",
+      "category": "spam",
+      "weight": 0.3
+    },
+    "win": {
+      "score": 2,
+      "trust": "low",
+      "category": "spam",
+      "weight": 0.3
+    },
+    "stream": {
+      "score": 3,
+      "trust": "low",
+      "category": "media",
+      "weight": 0.4
+    },
+    "gq": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    }
+  },
+  "special": {
+    "localhost": {
+      "score": 0,
+      "trust": "none",
+      "category": "local",
+      "weight": 0
+    },
+    "local": {
+      "score": 0,
+      "trust": "none",
+      "category": "local",
+      "weight": 0
+    },
+    "test": {
+      "score": 0,
+      "trust": "none",
+      "category": "test",
+      "weight": 0
+    },
+    "example": {
+      "score": 0,
+      "trust": "none",
+      "category": "test",
+      "weight": 0
+    },
+    "invalid": {
+      "score": 0,
+      "trust": "none",
+      "category": "test",
+      "weight": 0
+    }
+  },
+  "regional_brazil_complete": {
+    "com.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "regional",
+      "weight": 0.95,
+      "description": "Comercial brasileiro"
+    },
+    "org.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9,
+      "description": "Organização brasileira"
+    },
+    "gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo brasileiro"
+    },
+    "edu.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1,
+      "description": "Educacional brasileiro"
+    },
+    "net.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.85,
+      "description": "Rede brasileira"
+    },
+    "emp.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "business",
+      "weight": 0.9,
+      "description": "Empresa brasileira"
+    },
+    "ind.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "industry",
+      "weight": 0.9,
+      "description": "Indústria brasileira"
+    },
+    "inf.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "information",
+      "weight": 0.85,
+      "description": "Informação brasileira"
+    },
+    "adv.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "professional",
+      "weight": 0.9,
+      "description": "Advocacia brasileira"
+    },
+    "adm.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "professional",
+      "weight": 0.9,
+      "description": "Administração brasileira"
+    },
+    "eng.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "professional",
+      "weight": 0.9,
+      "description": "Engenharia brasileira"
+    },
+    "med.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "professional",
+      "weight": 0.95,
+      "description": "Medicina brasileira"
+    },
+    "odo.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "professional",
+      "weight": 0.9,
+      "description": "Odontologia brasileira"
+    },
+    "vet.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "professional",
+      "weight": 0.9,
+      "description": "Veterinária brasileira"
+    },
+    "pro.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "professional",
+      "weight": 0.9,
+      "description": "Profissional liberal brasileiro"
+    },
+    "agr.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "agriculture",
+      "weight": 0.85,
+      "description": "Agricultura brasileira"
+    },
+    "am.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "radio",
+      "weight": 0.85,
+      "description": "Rádio AM brasileiro"
+    },
+    "fm.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "radio",
+      "weight": 0.85,
+      "description": "Rádio FM brasileiro"
+    },
+    "tv.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "media",
+      "weight": 0.9,
+      "description": "Televisão brasileira"
+    },
+    "radio.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "media",
+      "weight": 0.85,
+      "description": "Rádio brasileiro"
+    },
+    "jor.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "media",
+      "weight": 0.85,
+      "description": "Jornalismo brasileiro"
+    },
+    "eco.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "ecology",
+      "weight": 0.85,
+      "description": "Ecologia brasileira"
+    },
+    "tur.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "tourism",
+      "weight": 0.85,
+      "description": "Turismo brasileiro"
+    },
+    "art.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "arts",
+      "weight": 0.85,
+      "description": "Arte brasileira"
+    },
+    "esp.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "sports",
+      "weight": 0.85,
+      "description": "Esporte brasileiro"
+    },
+    "mil.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "military",
+      "weight": 1,
+      "description": "Militar brasileiro"
+    },
+    "b.br": {
+      "score": 6,
+      "trust": "medium",
+      "category": "blog",
+      "weight": 0.7,
+      "description": "Blog brasileiro"
+    },
+    "blog.br": {
+      "score": 6,
+      "trust": "medium",
+      "category": "blog",
+      "weight": 0.7,
+      "description": "Blog brasileiro"
+    },
+    "nom.br": {
+      "score": 6,
+      "trust": "medium",
+      "category": "personal",
+      "weight": 0.7,
+      "description": "Nome pessoal brasileiro"
+    },
+    "ntr.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "notary",
+      "weight": 0.85,
+      "description": "Notarial brasileiro"
+    },
+    "ong.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "nonprofit",
+      "weight": 0.9,
+      "description": "ONG brasileira"
+    },
+    "coop.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "cooperative",
+      "weight": 0.9,
+      "description": "Cooperativa brasileira"
+    },
+    "det.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "DETRAN brasileiro"
+    },
+    "jus.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "justice",
+      "weight": 1,
+      "description": "Justiça brasileira"
+    },
+    "leg.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "legislative",
+      "weight": 1,
+      "description": "Legislativo brasileiro"
+    },
+    "ac.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Acre"
+    },
+    "al.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Alagoas"
+    },
+    "ap.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Amapá"
+    },
+    "am.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Amazonas"
+    },
+    "ba.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo da Bahia"
+    },
+    "ce.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Ceará"
+    },
+    "df.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Distrito Federal"
+    },
+    "es.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Espírito Santo"
+    },
+    "go.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Goiás"
+    },
+    "ma.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Maranhão"
+    },
+    "mt.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Mato Grosso"
+    },
+    "ms.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Mato Grosso do Sul"
+    },
+    "mg.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Minas Gerais"
+    },
+    "pa.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Pará"
+    },
+    "pb.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo da Paraíba"
+    },
+    "pr.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Paraná"
+    },
+    "pe.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Pernambuco"
+    },
+    "pi.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Piauí"
+    },
+    "rj.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Rio de Janeiro"
+    },
+    "rn.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Rio Grande do Norte"
+    },
+    "rs.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Rio Grande do Sul"
+    },
+    "ro.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Rondônia"
+    },
+    "rr.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Roraima"
+    },
+    "sc.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Santa Catarina"
+    },
+    "sp.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de São Paulo"
+    },
+    "se.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo de Sergipe"
+    },
+    "to.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1,
+      "description": "Governo do Tocantins"
+    }
+  },
+  "brazilian_popular_companies": {
+    "globo.com": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "media",
+      "weight": 0.95,
+      "description": "Rede Globo"
+    },
+    "uol.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "portal",
+      "weight": 0.9,
+      "description": "Portal UOL"
+    },
+    "terra.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "portal",
+      "weight": 0.9,
+      "description": "Portal Terra"
+    },
+    "ig.com.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "portal",
+      "weight": 0.85,
+      "description": "Portal iG"
+    },
+    "r7.com": {
+      "score": 8,
+      "trust": "high",
+      "category": "media",
+      "weight": 0.9,
+      "description": "Portal R7 - Record"
+    },
+    "band.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "media",
+      "weight": 0.9,
+      "description": "Band"
+    },
+    "sbt.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "media",
+      "weight": 0.9,
+      "description": "SBT"
+    },
+    "estadao.com.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "news",
+      "weight": 0.95,
+      "description": "Estadão"
+    },
+    "folha.com.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "news",
+      "weight": 0.95,
+      "description": "Folha de S.Paulo"
+    },
+    "veja.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "news",
+      "weight": 0.9,
+      "description": "Revista Veja"
+    },
+    "exame.com": {
+      "score": 8,
+      "trust": "high",
+      "category": "business",
+      "weight": 0.9,
+      "description": "Revista Exame"
+    },
+    "bb.com.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "banking",
+      "weight": 1,
+      "description": "Banco do Brasil"
+    },
+    "caixa.gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "banking",
+      "weight": 1,
+      "description": "Caixa Econômica Federal"
+    },
+    "itau.com.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "banking",
+      "weight": 1,
+      "description": "Banco Itaú"
+    },
+    "santander.com.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "banking",
+      "weight": 1,
+      "description": "Banco Santander"
+    },
+    "bradesco.com.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "banking",
+      "weight": 1,
+      "description": "Banco Bradesco"
+    },
+    "nubank.com.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "fintech",
+      "weight": 0.95,
+      "description": "Nubank"
+    },
+    "mercadolivre.com.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "ecommerce",
+      "weight": 0.95,
+      "description": "Mercado Livre"
+    },
+    "americanas.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "ecommerce",
+      "weight": 0.9,
+      "description": "Lojas Americanas"
+    },
+    "submarino.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "ecommerce",
+      "weight": 0.9,
+      "description": "Submarino"
+    },
+    "magazineluiza.com.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "ecommerce",
+      "weight": 0.95,
+      "description": "Magazine Luiza"
+    },
+    "casasbahia.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "ecommerce",
+      "weight": 0.9,
+      "description": "Casas Bahia"
+    },
+    "extra.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "ecommerce",
+      "weight": 0.9,
+      "description": "Extra"
+    },
+    "pontofrio.com.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "ecommerce",
+      "weight": 0.9,
+      "description": "Ponto Frio"
+    }
+  },
+  "brazilian_universities": {
+    "usp.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1,
+      "description": "Universidade de São Paulo"
+    },
+    "unicamp.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1,
+      "description": "Unicamp"
+    },
+    "ufrj.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1,
+      "description": "UFRJ"
+    },
+    "ufmg.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1,
+      "description": "UFMG"
+    },
+    "unesp.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1,
+      "description": "UNESP"
+    },
+    "unifesp.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1,
+      "description": "UNIFESP"
+    },
+    "puc-rio.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 0.95,
+      "description": "PUC-Rio"
+    },
+    "pucsp.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 0.95,
+      "description": "PUC-SP"
+    },
+    "fgv.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1,
+      "description": "FGV"
+    },
+    "insper.edu.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 0.95,
+      "description": "Insper"
+    }
+  }
+}

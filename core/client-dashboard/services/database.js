@@ -24,13 +24,49 @@ class DatabaseService {
             quit: async () => null
         };
         
-        // Não chamar setupRedis por enquanto
-        // this.setupRedis();
+        this.setupRedis();
     }
 
     async setupRedis() {
-        // Desabilitado temporariamente
-        console.log('Redis desabilitado temporariamente');
+        try {
+            const Redis = require('redis');
+            this.redis = Redis.createClient({
+                url: process.env.REDIS_URL || 'redis://redis:6379',
+                password: process.env.REDIS_PASSWORD || 'SparkNexus2024!',
+                socket: {
+                    reconnectStrategy: (retries) => {
+                        if (retries > 10) {
+                            console.log('⚠️ Redis: desistindo após 10 tentativas');
+                            return new Error('Redis connection failed');
+                        }
+                        return Math.min(retries * 100, 3000);
+                    }
+                }
+            });
+
+            this.redis.on('error', (err) => {
+                console.error('Redis Client Error:', err);
+                // isOpen é readonly
+            });
+
+            this.redis.on('connect', () => {
+                console.log('✅ Redis conectado com sucesso');
+                // isOpen é readonly
+            });
+
+            await this.redis.connect();
+        } catch (error) {
+            console.warn('⚠️ Redis não disponível:', error.message);
+            // Manter fallback para operação sem Redis
+            this.redis = {
+                isOpen: false,
+                get: async () => null,
+                set: async () => null,
+                setEx: async () => null,
+                del: async () => null,
+                quit: async () => null
+            };
+        }
     }
 
     // ================================================

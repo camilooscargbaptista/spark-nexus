@@ -1,0 +1,406 @@
+{
+  "premium": {
+    "com": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "premium",
+      "weight": 1
+    },
+    "org": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "premium",
+      "weight": 0.95
+    },
+    "net": {
+      "score": 8,
+      "trust": "high",
+      "category": "premium",
+      "weight": 0.9
+    },
+    "edu": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1
+    },
+    "gov": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1
+    }
+  },
+  "regional_brazil": {
+    "com.br": {
+      "score": 9,
+      "trust": "very_high",
+      "category": "regional",
+      "weight": 0.95
+    },
+    "org.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "gov.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "government",
+      "weight": 1
+    },
+    "edu.br": {
+      "score": 10,
+      "trust": "very_high",
+      "category": "educational",
+      "weight": 1
+    },
+    "net.br": {
+      "score": 7,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.85
+    },
+    "emp.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "business",
+      "weight": 0.9
+    },
+    "ind.br": {
+      "score": 8,
+      "trust": "high",
+      "category": "industry",
+      "weight": 0.9
+    }
+  },
+  "regional_trusted": {
+    "co.uk": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "de": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "fr": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "it": {
+      "score": 7,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.85
+    },
+    "es": {
+      "score": 7,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.85
+    },
+    "ca": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "au": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "jp": {
+      "score": 8,
+      "trust": "high",
+      "category": "regional",
+      "weight": 0.9
+    },
+    "cn": {
+      "score": 6,
+      "trust": "medium",
+      "category": "regional",
+      "weight": 0.7
+    },
+    "in": {
+      "score": 6,
+      "trust": "medium",
+      "category": "regional",
+      "weight": 0.7
+    },
+    "ru": {
+      "score": 5,
+      "trust": "medium",
+      "category": "regional",
+      "weight": 0.6
+    }
+  },
+  "business": {
+    "io": {
+      "score": 7,
+      "trust": "high",
+      "category": "tech",
+      "weight": 0.85
+    },
+    "ai": {
+      "score": 7,
+      "trust": "high",
+      "category": "tech",
+      "weight": 0.85
+    },
+    "tech": {
+      "score": 7,
+      "trust": "high",
+      "category": "tech",
+      "weight": 0.85
+    },
+    "dev": {
+      "score": 7,
+      "trust": "high",
+      "category": "tech",
+      "weight": 0.85
+    },
+    "app": {
+      "score": 6,
+      "trust": "medium",
+      "category": "tech",
+      "weight": 0.75
+    },
+    "biz": {
+      "score": 5,
+      "trust": "medium",
+      "category": "business",
+      "weight": 0.6
+    },
+    "info": {
+      "score": 5,
+      "trust": "medium",
+      "category": "generic",
+      "weight": 0.6
+    },
+    "co": {
+      "score": 6,
+      "trust": "medium",
+      "category": "generic",
+      "weight": 0.7
+    },
+    "me": {
+      "score": 5,
+      "trust": "medium",
+      "category": "personal",
+      "weight": 0.6
+    }
+  },
+  "new_gtlds": {
+    "xyz": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "top": {
+      "score": 2,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.3
+    },
+    "site": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "online": {
+      "score": 4,
+      "trust": "medium",
+      "category": "new_gtld",
+      "weight": 0.5
+    },
+    "store": {
+      "score": 5,
+      "trust": "medium",
+      "category": "commerce",
+      "weight": 0.6
+    },
+    "shop": {
+      "score": 5,
+      "trust": "medium",
+      "category": "commerce",
+      "weight": 0.6
+    },
+    "blog": {
+      "score": 4,
+      "trust": "medium",
+      "category": "content",
+      "weight": 0.5
+    },
+    "club": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "fun": {
+      "score": 2,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.3
+    },
+    "live": {
+      "score": 4,
+      "trust": "medium",
+      "category": "media",
+      "weight": 0.5
+    },
+    "pro": {
+      "score": 6,
+      "trust": "medium",
+      "category": "professional",
+      "weight": 0.7
+    },
+    "email": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "cloud": {
+      "score": 5,
+      "trust": "medium",
+      "category": "tech",
+      "weight": 0.6
+    },
+    "digital": {
+      "score": 4,
+      "trust": "medium",
+      "category": "tech",
+      "weight": 0.5
+    }
+  },
+  "suspicious": {
+    "tk": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    },
+    "ml": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    },
+    "ga": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    },
+    "cf": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    },
+    "click": {
+      "score": 2,
+      "trust": "very_low",
+      "category": "spam",
+      "weight": 0.2
+    },
+    "download": {
+      "score": 2,
+      "trust": "very_low",
+      "category": "spam",
+      "weight": 0.2
+    },
+    "review": {
+      "score": 2,
+      "trust": "low",
+      "category": "spam",
+      "weight": 0.3
+    },
+    "work": {
+      "score": 3,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.4
+    },
+    "men": {
+      "score": 2,
+      "trust": "low",
+      "category": "new_gtld",
+      "weight": 0.3
+    },
+    "loan": {
+      "score": 2,
+      "trust": "very_low",
+      "category": "spam",
+      "weight": 0.2
+    },
+    "bid": {
+      "score": 2,
+      "trust": "low",
+      "category": "spam",
+      "weight": 0.3
+    },
+    "win": {
+      "score": 2,
+      "trust": "low",
+      "category": "spam",
+      "weight": 0.3
+    },
+    "stream": {
+      "score": 3,
+      "trust": "low",
+      "category": "media",
+      "weight": 0.4
+    },
+    "gq": {
+      "score": 1,
+      "trust": "very_low",
+      "category": "free",
+      "weight": 0.1
+    }
+  },
+  "special": {
+    "localhost": {
+      "score": 0,
+      "trust": "none",
+      "category": "local",
+      "weight": 0
+    },
+    "local": {
+      "score": 0,
+      "trust": "none",
+      "category": "local",
+      "weight": 0
+    },
+    "test": {
+      "score": 0,
+      "trust": "none",
+      "category": "test",
+      "weight": 0
+    },
+    "example": {
+      "score": 0,
+      "trust": "none",
+      "category": "test",
+      "weight": 0
+    },
+    "invalid": {
+      "score": 0,
+      "trust": "none",
+      "category": "test",
+      "weight": 0
+    }
+  }
+}
