@@ -23,6 +23,8 @@ const Validators = require('./services/validators');
 const ReportService = require('./services/reportServiceSimple');
 
 // Validador Aprimorado
+const ReportEmailService = require('./services/reports/ReportEmailService');
+const reportEmailService = new ReportEmailService();
 const UltimateValidator = require('./ultimateValidator');
 const ultimateValidator = new UltimateValidator({
     enableSMTP: true,
@@ -107,8 +109,53 @@ const authenticateToken = async (req, res, next) => {
         req.session = session;
         next();
     } catch (err) {
-      console.log('erro token: ', err);
+        console.log('erro token: ', err);
         return res.status(403).json({ error: 'Token inválido' });
+    }
+};
+
+// ================================================
+// MÉTODO AUXILIAR PARA BUSCAR DADOS COMPLETOS DO USUÁRIO
+// ================================================
+const getUserFullData = async (userId) => {
+    try {
+        const result = await db.pool.query(
+            `SELECT
+                id,
+                first_name,
+                last_name,
+                email,
+                phone,
+                cpf_cnpj,
+                company,
+                email_verified,
+                phone_verified,
+                created_at
+            FROM auth.users
+            WHERE id = $1`,
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return null;
+        }
+
+        return {
+            id: result.rows[0].id,
+            firstName: result.rows[0].first_name,
+            lastName: result.rows[0].last_name,
+            email: result.rows[0].email,
+            phone: result.rows[0].phone,
+            cpfCnpj: result.rows[0].cpf_cnpj,
+            company: result.rows[0].company,
+            emailVerified: result.rows[0].email_verified,
+            phoneVerified: result.rows[0].phone_verified,
+            createdAt: result.rows[0].created_at,
+            fullName: `${result.rows[0].first_name} ${result.rows[0].last_name}`
+        };
+    } catch (error) {
+        console.error('Erro ao buscar dados completos do usuário:', error);
+        return null;
     }
 };
 
@@ -249,41 +296,7 @@ app.post('/api/auth/register', [
                 userData.phoneToken
             );
 
-            
-        // Gerar relatório Excel
-        console.log('Gerando relatório Excel...');
-        const reportData = await reportService.generateValidationReport(
-            validationResults,
-            {
-                name: req.user.firstName + ' ' + req.user.lastName,
-                email: req.user.email,
-                company: req.session?.company || 'Spark Nexus'
-            }
-        );
-        
-        // Enviar relatório por email
-        console.log('Enviando relatório por email...');
-        await emailService.sendValidationReport(
-            req.user.email,
-            reportData,
-            reportData.filepath,
-            {
-                name: req.user.firstName,
-                company: req.session?.company
-            }
-        );
-        
-        // Limpar arquivo após envio (opcional)
-        setTimeout(async () => {
-            try {
-                await fs.unlink(reportData.filepath);
-                console.log('Arquivo temporário removido');
-            } catch (err) {
-                console.error('Erro ao remover arquivo:', err);
-            }
-        }, 60000); // Remove após 1 minuto
-
-        res.json({
+            res.json({
                 success: true,
                 message: 'Usuário criado. Verifique seu email e telefone.',
                 userId: result.user.id
@@ -332,23 +345,11 @@ app.post('/api/auth/login', [
         }
 
         // Verificar senha
-
         console.log('Senha digitada:', password);
         console.log('Hash do banco:', user.password_hash);
 
-        // Teste direto
-        const validPassword_ = await bcrypt.compare(password, user.password_hash);
-        console.log('Senha válida?', validPassword_);
-
-        // Se estiver falhando, verifique:
-        // 1. A senha está vindo corretamente do frontend?
-        console.log('Tipo da senha:', typeof password);
-        console.log('Comprimento:', password.length);
-
-        // 2. O hash está vindo corretamente do banco?
-        console.log('Tipo do hash:', typeof user.password_hash);
-        console.log('Comprimento do hash:', user.password_hash.length);
         const validPassword = await bcrypt.compare(password, user.password_hash);
+        console.log('Senha válida?', validPassword);
 
         if (!validPassword) {
             await db.logLoginAttempt(email, ipAddress, false);
@@ -640,7 +641,16 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
             return res.status(400).json({ error: 'Nenhum arquivo enviado' });
         }
 
-        // Processar arquivo (implementação simplificada)
+        // Buscar dados completos do usuário
+        const userData = await getUserFullData(req.user.id);
+
+        if (!userData) {
+            return res.status(404).json({ error: 'Dados do usuário não encontrados' });
+        }
+
+        console.log('Dados do usuário recuperados:', userData);
+
+        // Processar arquivo
         const fs = require('fs').promises;
         const csvContent = await fs.readFile(req.file.path, 'utf-8');
         const lines = csvContent.split('\n').filter(line => line.trim());
@@ -659,24 +669,56 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
         // Criar job de validação
         const jobId = uuidv4();
 
+        // Processar emails com validador aprimorado
+        console.log(`Iniciando validação de ${emails.length} emails...`);
+        const validationPromises = emails.map(email => ultimateValidator.validateEmail(email));
+        const validationResults = await Promise.all(validationPromises);
 
+        console.log('Resultados da validação:', validationResults);
 
+        // Preparar informações do usuário para o relatório
+        const userInfo = {
+            name: userData.fullName,
+            email: userData.email,
+            company: userData.company,
+            phone: userData.phone
+        };
 
-                // Processar emails com validador aprimorado
-                const validationPromises = emails.map(email => ultimateValidator.validateEmail(email));
-                const validationResults = await Promise.all(validationPromises);
+        // Gerar e enviar relatório para o email do usuário
+        console.log(`Enviando relatório para: ${userData.email}`);
+        const reportResult = await reportEmailService.generateAndSendReport(
+            validationResults,
+            userData.email, // Email do usuário autenticado
+            userInfo
+        );
 
-                console.log('validationResults -----: ', validationResults)
+        console.log('Resultado do relatório:', reportResult);
 
-                // Estatísticas
-                const validCount = validationResults.filter(r => r.valid).length;
-                const avgScore = validationResults.reduce((acc, r) => acc + r.score, 0) / validationResults.length;
+        // Estatísticas
+        const validCount = validationResults.filter(r => r.valid).length;
+        const avgScore = validationResults.reduce((acc, r) => acc + r.score, 0) / validationResults.length;
 
         res.json({
             success: true,
-            message: `${emails.length} emails enviados para validação`,
+            message: `${emails.length} emails validados com sucesso! O relatório será enviado por e-mail.`,
             jobId,
-            emails: validationResults
+            user: {
+                name: userData.fullName,
+                email: userData.email,
+                company: userData.company
+            },
+            stats: {
+                total: emails.length,
+                valid: validCount,
+                invalid: emails.length - validCount,
+                averageScore: Math.round(avgScore)
+            },
+            reportSent: true,
+            reportDetails: {
+                sentTo: userData.email,
+                filename: reportResult.filename,
+                sentAt: new Date().toISOString()
+            }
         });
     } catch (error) {
         console.error('Erro no upload:', error);
@@ -705,9 +747,8 @@ app.post('/api/validate/single', authenticateToken, [
     }
 });
 
-
 // Validação avançada
-app.post('/api/validate/advanced', async (req, res) => {
+app.post('/api/validate/advanced', authenticateToken, async (req, res) => {
     try {
         const { email } = req.body;
 
@@ -724,7 +765,7 @@ app.post('/api/validate/advanced', async (req, res) => {
 });
 
 // Validação em lote
-app.post('/api/validate/batch', async (req, res) => {
+app.post('/api/validate/batch', authenticateToken, async (req, res) => {
     try {
         const { emails } = req.body;
 
@@ -736,6 +777,9 @@ app.post('/api/validate/batch', async (req, res) => {
             return res.status(400).json({ error: 'Máximo de 100 emails por lote' });
         }
 
+        // Buscar dados do usuário
+        const userData = await getUserFullData(req.user.id);
+
         const results = await ultimateValidator.validateBatch(emails);
 
         res.json({
@@ -745,6 +789,10 @@ app.post('/api/validate/batch', async (req, res) => {
                 valid: results.filter(r => r.valid).length,
                 invalid: results.filter(r => !r.valid).length,
                 avgScore: Math.round(results.reduce((acc, r) => acc + r.score, 0) / results.length)
+            },
+            user: {
+                email: userData?.email,
+                company: userData?.company
             }
         });
     } catch (error) {
@@ -753,9 +801,8 @@ app.post('/api/validate/batch', async (req, res) => {
     }
 });
 
-
 // Estatísticas do validador
-app.get('/api/validator/stats', async (req, res) => {
+app.get('/api/validator/stats', authenticateToken, async (req, res) => {
     try {
         const stats = await ultimateValidator.getStatistics();
         res.json(stats);
@@ -776,18 +823,18 @@ app.post('/api/validator/cache/clear', authenticateToken, async (req, res) => {
     }
 });
 
-
 // Download de relatório
 app.get('/api/reports/download/:filename', authenticateToken, async (req, res) => {
     try {
         const { filename } = req.params;
         const filepath = path.join(__dirname, 'reports', filename);
-        
+
         // Verificar se arquivo existe
+        const fs = require('fs');
         if (!fs.existsSync(filepath)) {
             return res.status(404).json({ error: 'Relatório não encontrado' });
         }
-        
+
         // Enviar arquivo
         res.download(filepath, filename, (err) => {
             if (err) {
@@ -805,38 +852,50 @@ app.get('/api/reports/download/:filename', authenticateToken, async (req, res) =
 app.post('/api/reports/generate', authenticateToken, async (req, res) => {
     try {
         const { emails } = req.body;
-        
+
         if (!emails || !Array.isArray(emails)) {
             return res.status(400).json({ error: 'Lista de emails é obrigatória' });
         }
-        
+
+        // Buscar dados completos do usuário
+        const userData = await getUserFullData(req.user.id);
+
+        if (!userData) {
+            return res.status(404).json({ error: 'Dados do usuário não encontrados' });
+        }
+
         // Validar emails
         const validationResults = await ultimateValidator.validateBatch(emails);
-        
+
         // Gerar relatório
-        const reportData = await reportService.generateValidationReport(
+        const reportData = await reportEmailService.generateValidationReport(
             validationResults,
             {
-                name: req.user.firstName + ' ' + req.user.lastName,
-                email: req.user.email
+                name: userData.fullName,
+                email: userData.email,
+                company: userData.company
             }
         );
-        
+
         // Enviar por email se solicitado
         if (req.body.sendEmail) {
             await emailService.sendValidationReport(
-                req.user.email,
+                userData.email, // Usar email do usuário autenticado
                 reportData,
                 reportData.filepath,
-                { name: req.user.firstName }
+                {
+                    name: userData.firstName,
+                    company: userData.company
+                }
             );
         }
-        
+
         res.json({
             success: true,
             filename: reportData.filename,
             downloadUrl: `/api/reports/download/${reportData.filename}`,
-            stats: reportData.stats
+            stats: reportData.stats,
+            sentTo: req.body.sendEmail ? userData.email : null
         });
     } catch (error) {
         console.error('Erro ao gerar relatório:', error);
@@ -844,15 +903,105 @@ app.post('/api/reports/generate', authenticateToken, async (req, res) => {
     }
 });
 
-
 // Estatísticas detalhadas do Ultimate Validator
-app.get('/api/validator/ultimate-stats', async (req, res) => {
+app.get('/api/validator/ultimate-stats', authenticateToken, async (req, res) => {
     try {
         const stats = ultimateValidator.getStatistics();
         res.json(stats);
     } catch (error) {
         console.error('Erro ao buscar estatísticas:', error);
         res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+    }
+});
+
+// Endpoint para validação com relatório por email
+app.post('/api/validate/batch-with-report', authenticateToken, async (req, res) => {
+    try {
+        const { emails, sendReport } = req.body;
+
+        if (!emails || !Array.isArray(emails)) {
+            return res.status(400).json({ error: 'Lista de emails é obrigatória' });
+        }
+
+        // Buscar dados completos do usuário
+        const userData = await getUserFullData(req.user.id);
+
+        if (!userData) {
+            return res.status(404).json({ error: 'Dados do usuário não encontrados' });
+        }
+
+        console.log(`📧 Validando ${emails.length} emails para ${userData.fullName}...`);
+
+        // Validar emails
+        const validationResults = await ultimateValidator.validateBatch(emails);
+
+        // Se solicitado, enviar relatório por email
+        if (sendReport) {
+            console.log(`📊 Gerando e enviando relatório para ${userData.email}...`);
+
+            const userInfo = {
+                name: userData.fullName,
+                email: userData.email,
+                company: userData.company,
+                phone: userData.phone
+            };
+
+            const reportResult = await reportEmailService.generateAndSendReport(
+                validationResults,
+                userData.email, // Email do usuário autenticado
+                userInfo
+            );
+
+            return res.json({
+                success: true,
+                totalEmails: emails.length,
+                validationResults: validationResults,
+                report: {
+                    ...reportResult,
+                    sentTo: userData.email
+                },
+                user: {
+                    name: userData.fullName,
+                    email: userData.email,
+                    company: userData.company
+                }
+            });
+        }
+
+        // Retornar apenas resultados se não for para enviar relatório
+        res.json({
+            success: true,
+            totalEmails: emails.length,
+            validationResults: validationResults,
+            user: {
+                name: userData.fullName,
+                email: userData.email,
+                company: userData.company
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro na validação com relatório:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obter dados do usuário autenticado
+app.get('/api/user/profile', authenticateToken, async (req, res) => {
+    try {
+        const userData = await getUserFullData(req.user.id);
+
+        if (!userData) {
+            return res.status(404).json({ error: 'Dados do usuário não encontrados' });
+        }
+
+        res.json({
+            success: true,
+            user: userData
+        });
+    } catch (error) {
+        console.error('Erro ao buscar perfil:', error);
+        res.status(500).json({ error: 'Erro ao buscar dados do usuário' });
     }
 });
 
@@ -930,6 +1079,14 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     - GET  /api/stats
     - POST /api/upload
     - POST /api/validate/single
+    - POST /api/validate/advanced
+    - POST /api/validate/batch
+    - POST /api/validate/batch-with-report
+    - GET  /api/validator/stats
+    - POST /api/validator/cache/clear
+    - GET  /api/reports/download/:filename
+    - POST /api/reports/generate
+    - GET  /api/user/profile
 
     HEALTH:
     - GET  /api/health
