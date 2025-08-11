@@ -23,8 +23,12 @@ const Validators = require('./services/validators');
 const ReportService = require('./services/reportServiceSimple');
 
 // Validador Aprimorado
-const EnhancedValidator = require('./enhancedValidator');
-const enhancedValidator = new EnhancedValidator();
+const UltimateValidator = require('./ultimateValidator');
+const ultimateValidator = new UltimateValidator({
+    enableSMTP: true,
+    enableCache: true,
+    scoreThreshold: 40
+});
 
 // Inicializar Express
 const app = express();
@@ -659,7 +663,7 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
 
 
                 // Processar emails com validador aprimorado
-                const validationPromises = emails.map(email => enhancedValidator.validateEmail(email));
+                const validationPromises = emails.map(email => ultimateValidator.validateEmail(email));
                 const validationResults = await Promise.all(validationPromises);
 
                 console.log('validationResults -----: ', validationResults)
@@ -693,7 +697,7 @@ app.post('/api/validate/single', authenticateToken, [
         const { email } = req.body;
 
         // Usar o validador aprimorado
-        const result = await enhancedValidator.validateEmail(email);
+        const result = await ultimateValidator.validateEmail(email);
 
         res.json(result);
     } catch (error) {
@@ -711,7 +715,7 @@ app.post('/api/validate/advanced', async (req, res) => {
             return res.status(400).json({ error: 'Email é obrigatório' });
         }
 
-        const result = await enhancedValidator.validateEmail(email);
+        const result = await ultimateValidator.validateEmail(email);
         res.json(result);
     } catch (error) {
         console.error('Erro na validação avançada:', error);
@@ -732,7 +736,7 @@ app.post('/api/validate/batch', async (req, res) => {
             return res.status(400).json({ error: 'Máximo de 100 emails por lote' });
         }
 
-        const results = await enhancedValidator.validateBatch(emails);
+        const results = await ultimateValidator.validateBatch(emails);
 
         res.json({
             total: emails.length,
@@ -753,7 +757,7 @@ app.post('/api/validate/batch', async (req, res) => {
 // Estatísticas do validador
 app.get('/api/validator/stats', async (req, res) => {
     try {
-        const stats = await enhancedValidator.getStatistics();
+        const stats = await ultimateValidator.getStatistics();
         res.json(stats);
     } catch (error) {
         console.error('Erro ao buscar estatísticas:', error);
@@ -764,7 +768,7 @@ app.get('/api/validator/stats', async (req, res) => {
 // Limpar cache do validador
 app.post('/api/validator/cache/clear', authenticateToken, async (req, res) => {
     try {
-        await enhancedValidator.clearCache();
+        await ultimateValidator.clearCache();
         res.json({ success: true, message: 'Cache limpo com sucesso' });
     } catch (error) {
         console.error('Erro ao limpar cache:', error);
@@ -807,7 +811,7 @@ app.post('/api/reports/generate', authenticateToken, async (req, res) => {
         }
         
         // Validar emails
-        const validationResults = await enhancedValidator.validateBatch(emails);
+        const validationResults = await ultimateValidator.validateBatch(emails);
         
         // Gerar relatório
         const reportData = await reportService.generateValidationReport(
@@ -837,6 +841,18 @@ app.post('/api/reports/generate', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Erro ao gerar relatório:', error);
         res.status(500).json({ error: 'Erro ao gerar relatório' });
+    }
+});
+
+
+// Estatísticas detalhadas do Ultimate Validator
+app.get('/api/validator/ultimate-stats', async (req, res) => {
+    try {
+        const stats = ultimateValidator.getStatistics();
+        res.json(stats);
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+        res.status(500).json({ error: 'Erro ao buscar estatísticas' });
     }
 });
 

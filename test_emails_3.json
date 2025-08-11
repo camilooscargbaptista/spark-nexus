@@ -1,0 +1,13 @@
+{
+  "emails": [
+    "valid@gmail.com",
+    "teste@empresa.com.br",
+    "contato@gov.br",
+    "fake@tempmail.com",
+    "admin@10minutemail.com",
+    "usuario@outlook.com",
+    "invalid-email",
+    "suporte@itau.com.br"
+  ],
+  "sendEmail": false
+}
