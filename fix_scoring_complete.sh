@@ -55,11 +55,15 @@ success() {
 # ================================================
 log "🔍 Verificando estrutura do projeto..."
 
-if [ ! -d "core" ] || [ ! -d "client-dashboard" ]; then
-    error "Este script deve ser executado na raiz do spark-nexus (onde estão core/ e client-dashboard/)"
+if [ ! -d "core" ]; then
+    error "Este script deve ser executado na raiz do spark-nexus (onde está a pasta core/)"
 fi
 
-success "Estrutura do projeto verificada"
+if [ ! -d "core/client-dashboard" ]; then
+    error "Estrutura incorreta: não encontrado core/client-dashboard/"
+fi
+
+success "Estrutura do projeto verificada: spark-nexus/core/client-dashboard/"
 
 # ================================================
 # LOCALIZAR ARQUIVO ECOMMERCESCORING.JS
@@ -68,10 +72,10 @@ log "📍 Localizando arquivo EcommerceScoring.js..."
 
 POSSIBLE_PATHS=(
     "core/client-dashboard/services/validators/advanced/EcommerceScoring.js"
-    "core/services/validators/advanced/EcommerceScoring.js"
-    "core/src/services/EcommerceScoring.js"
-    "core/lib/EcommerceScoring.js"
-    "client-dashboard/services/validators/advanced/EcommerceScoring.js"
+    "core/client-dashboard/services/EcommerceScoring.js"
+    "core/client-dashboard/src/services/EcommerceScoring.js"
+    "core/client-dashboard/lib/EcommerceScoring.js"
+    "core/client-dashboard/validators/EcommerceScoring.js"
 )
 
 SCORING_FILE=""
@@ -756,7 +760,33 @@ log "🧪 Criando script de teste..."
 
 cat > "test_scoring_fix.js" << 'EOF'
 // Script de teste para validar as correções
-const EcommerceScoring = require('./core/client-dashboard/services/validators/advanced/EcommerceScoring');
+
+// Ajustar o caminho baseado na localização real do arquivo
+const path = require('path');
+const fs = require('fs');
+
+// Procurar o arquivo EcommerceScoring.js
+let scoringPath;
+const possiblePaths = [
+    './core/client-dashboard/services/validators/advanced/EcommerceScoring.js',
+    './core/client-dashboard/services/EcommerceScoring.js',
+    './core/client-dashboard/src/services/EcommerceScoring.js',
+    './core/client-dashboard/lib/EcommerceScoring.js'
+];
+
+for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+        scoringPath = p;
+        break;
+    }
+}
+
+if (!scoringPath) {
+    console.error('❌ Não foi possível encontrar EcommerceScoring.js');
+    process.exit(1);
+}
+
+const EcommerceScoring = require(scoringPath);
 
 console.log('\n========================================');
 console.log('🧪 TESTANDO SISTEMA DE SCORING CORRIGIDO');
