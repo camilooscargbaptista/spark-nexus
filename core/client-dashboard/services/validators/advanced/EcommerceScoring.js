@@ -82,12 +82,7 @@ class EcommerceScoring {
         }
 
         // Format Quality
-        console.log('validationResults: ', validationResults);
-        console.log('validationResults.email: ', validationResults.email);
-
         const formatPoints = this.calculateFormatPoints(validationResults.email);
-        console.log('formatPoints ------', formatPoints);
-
         totalScore += formatPoints * this.weights.formatQuality;
         totalWeight += this.weights.formatQuality;
         scoreData.breakdown.format = {
@@ -97,14 +92,9 @@ class EcommerceScoring {
         };
 
         // Calcular score final (0-100)
-        console.log('totalScore: ---- ', totalScore);
-        console.log('totalWeight: ---- ', totalWeight);
-
-        scoreData.baseScore = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
-        console.log('baseScore ------ ', scoreData.baseScore);
+        scoreData.baseScore = totalWeight > 0 ? Math.round((totalScore / totalWeight) * 10) : 0;
 
         scoreData.finalScore = Math.max(0, Math.min(100, scoreData.baseScore));
-        console.log('finalScore ------- ', scoreData.finalScore);
 
 
         // Determinar classificações
@@ -147,6 +137,8 @@ class EcommerceScoring {
     }
 
     calculateFormatPoints(email) {
+        if (!email) return 0;
+
         const [localPart] = email.split('@');
 
         // Formato profissional (nome.sobrenome)
