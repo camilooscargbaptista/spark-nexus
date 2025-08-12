@@ -1,0 +1,342 @@
+-- ================================================
+-- Migration: 003_fix_quota_functions_integer_id
+-- Description: Corrige funções de quota para usar INTEGER em vez de UUID
+-- Author: Spark Nexus Team
+-- Date: 2025-01-12
+-- ================================================
+
+-- ================================================
+-- DROPAR FUNÇÕES ANTIGAS COM UUID
+-- ================================================
+
+DROP FUNCTION IF EXISTS tenant.increment_validation_usage(UUID, INTEGER);
+DROP FUNCTION IF EXISTS tenant.update_organization_settings(UUID, JSONB);
+DROP FUNCTION IF EXISTS tenant.get_organization_setting(UUID, TEXT);
+
+-- ================================================
+-- RECRIAR TABELA quota_history COM INTEGER
+-- ================================================
+
+-- Primeiro, fazer backup dos dados se existirem
+CREATE TEMP TABLE quota_history_backup AS
+SELECT * FROM tenant.quota_history;
+
+-- Dropar a tabela antiga
+DROP TABLE IF EXISTS tenant.quota_history CASCADE;
+
+-- Recriar com INTEGER para organization_id
+CREATE TABLE tenant.quota_history (
+    id SERIAL PRIMARY KEY,
+    organization_id INTEGER NOT NULL REFERENCES tenant.organizations(id) ON DELETE CASCADE,
+    month DATE NOT NULL,
+    validations_used INTEGER DEFAULT 0,
+    max_validations INTEGER,
+    reset_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reset_reason VARCHAR(50) DEFAULT 'monthly',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_org_month UNIQUE (organization_id, month)
+);
+
+COMMENT ON TABLE tenant.quota_history IS
+'Histórico mensal de uso de quotas por organização';
+
+-- Recriar índices
+CREATE INDEX idx_quota_history_org
+ON tenant.quota_history(organization_id);
+
+CREATE INDEX idx_quota_history_month
+ON tenant.quota_history(month);
+
+CREATE INDEX idx_quota_history_org_month
+ON tenant.quota_history(organization_id, month DESC);
+
+-- ================================================
+-- RECRIAR FUNÇÃO increment_validation_usage COM INTEGER
+-- ================================================
+
+CREATE OR REPLACE FUNCTION tenant.increment_validation_usage(
+    p_organization_id INTEGER,
+    p_count INTEGER DEFAULT 1
+)
+RETURNS TABLE (
+    success BOOLEAN,
+    remaining INTEGER,
+    message TEXT
+) AS $$
+DECLARE
+    v_current_used INTEGER;
+    v_max_allowed INTEGER;
+    v_new_used INTEGER;
+BEGIN
+    -- Obter valores atuais com lock para evitar condições de corrida
+    SELECT validations_used, max_validations
+    INTO v_current_used, v_max_allowed
+    FROM tenant.organizations
+    WHERE id = p_organization_id
+    FOR UPDATE;
+
+    -- Verificar se encontrou a organização
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT
+            false,
+            0,
+            'Organização não encontrada';
+        RETURN;
+    END IF;
+
+    -- Calcular novo valor
+    v_new_used := v_current_used + p_count;
+
+    -- Verificar se excede o limite
+    IF v_new_used > v_max_allowed THEN
+        RETURN QUERY SELECT
+            false,
+            v_max_allowed - v_current_used,
+            format('Limite de %s validações excedido. Restam %s validações.',
+                   v_max_allowed, v_max_allowed - v_current_used);
+        RETURN;
+    END IF;
+
+    -- Atualizar contador
+    UPDATE tenant.organizations
+    SET validations_used = v_new_used
+    WHERE id = p_organization_id;
+
+    RETURN QUERY SELECT
+        true,
+        v_max_allowed - v_new_used,
+        format('Sucesso. Restam %s validações de %s.',
+               v_max_allowed - v_new_used, v_max_allowed);
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION tenant.increment_validation_usage(INTEGER, INTEGER) IS
+'Incrementa o contador de validações usadas, verificando o limite';
+
+-- ================================================
+-- RECRIAR FUNÇÃO reset_monthly_quotas
+-- ================================================
+
+CREATE OR REPLACE FUNCTION tenant.reset_monthly_quotas()
+RETURNS TABLE (
+    org_id INTEGER,
+    org_name VARCHAR(255),
+    validations_before INTEGER,
+    reset_performed BOOLEAN
+) AS $$
+DECLARE
+    v_record RECORD;
+    v_should_reset BOOLEAN;
+    v_current_day INTEGER;
+BEGIN
+    v_current_day := DATE_PART('day', CURRENT_DATE);
+
+    FOR v_record IN
+        SELECT
+            o.id,
+            o.name,
+            o.validations_used,
+            o.max_validations,
+            o.last_reset_date,
+            o.billing_cycle_day
+        FROM tenant.organizations o
+        WHERE o.is_active = true
+    LOOP
+        -- Determinar se deve resetar
+        v_should_reset := FALSE;
+
+        -- Verificar se é o dia do reset OU se passou do mês sem resetar
+        IF (v_current_day = v_record.billing_cycle_day) OR
+           (v_record.last_reset_date < date_trunc('month', CURRENT_DATE)) THEN
+            v_should_reset := TRUE;
+        END IF;
+
+        -- Se é fim do mês e o dia de reset é maior que o último dia do mês
+        IF (v_record.billing_cycle_day > v_current_day) AND
+           (v_current_day = DATE_PART('day', (date_trunc('month', CURRENT_DATE) + interval '1 month - 1 day')::date)) THEN
+            v_should_reset := TRUE;
+        END IF;
+
+        IF v_should_reset THEN
+            -- Inserir no histórico antes de resetar
+            INSERT INTO tenant.quota_history (
+                organization_id,
+                month,
+                validations_used,
+                max_validations,
+                reset_reason
+            ) VALUES (
+                v_record.id,
+                date_trunc('month', v_record.last_reset_date),
+                v_record.validations_used,
+                v_record.max_validations,
+                'monthly'
+            ) ON CONFLICT (organization_id, month) DO UPDATE
+            SET validations_used = EXCLUDED.validations_used,
+                reset_date = CURRENT_TIMESTAMP;
+
+            -- Resetar contador
+            UPDATE tenant.organizations
+            SET
+                validations_used = 0,
+                last_reset_date = CURRENT_TIMESTAMP,
+                quota_reset_count = quota_reset_count + 1
+            WHERE id = v_record.id;
+
+            RETURN QUERY SELECT
+                v_record.id,
+                v_record.name,
+                v_record.validations_used,
+                true;
+        ELSE
+            RETURN QUERY SELECT
+                v_record.id,
+                v_record.name,
+                v_record.validations_used,
+                false;
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION tenant.reset_monthly_quotas() IS
+'Reseta os contadores de validação mensais das organizações conforme billing_cycle_day';
+
+-- ================================================
+-- RECRIAR FUNÇÕES DE SETTINGS COM INTEGER
+-- ================================================
+
+CREATE OR REPLACE FUNCTION tenant.update_organization_settings(
+    p_organization_id INTEGER,
+    p_settings JSONB
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_current_settings JSONB;
+    v_new_settings JSONB;
+BEGIN
+    -- Obter settings atuais
+    SELECT settings
+    INTO v_current_settings
+    FROM tenant.organizations
+    WHERE id = p_organization_id
+    FOR UPDATE;
+
+    -- Verificar se encontrou a organização
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Organização com ID % não encontrada', p_organization_id;
+    END IF;
+
+    -- Fazer merge dos settings
+    v_new_settings := v_current_settings || p_settings;
+
+    -- Atualizar settings
+    UPDATE tenant.organizations
+    SET settings = v_new_settings
+    WHERE id = p_organization_id;
+
+    RETURN v_new_settings;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION tenant.update_organization_settings(INTEGER, JSONB) IS
+'Atualiza configurações da organização fazendo merge com as existentes';
+
+CREATE OR REPLACE FUNCTION tenant.get_organization_setting(
+    p_organization_id INTEGER,
+    p_key TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_value JSONB;
+BEGIN
+    SELECT settings->p_key
+    INTO v_value
+    FROM tenant.organizations
+    WHERE id = p_organization_id;
+
+    RETURN v_value;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION tenant.get_organization_setting(INTEGER, TEXT) IS
+'Obtém valor específico das configurações da organização';
+
+-- ================================================
+-- FUNÇÃO AUXILIAR PARA VERIFICAR QUOTA
+-- ================================================
+
+CREATE OR REPLACE FUNCTION tenant.check_quota(
+    p_organization_id INTEGER,
+    p_required_count INTEGER DEFAULT 1
+)
+RETURNS TABLE (
+    allowed BOOLEAN,
+    remaining INTEGER,
+    used INTEGER,
+    max_limit INTEGER,
+    message TEXT
+) AS $$
+DECLARE
+    v_max INTEGER;
+    v_used INTEGER;
+    v_remaining INTEGER;
+BEGIN
+    SELECT max_validations, validations_used, max_validations - validations_used
+    INTO v_max, v_used, v_remaining
+    FROM tenant.organizations
+    WHERE id = p_organization_id;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT
+            false,
+            0,
+            0,
+            0,
+            'Organização não encontrada';
+        RETURN;
+    END IF;
+
+    RETURN QUERY SELECT
+        v_remaining >= p_required_count,
+        v_remaining,
+        v_used,
+        v_max,
+        CASE
+            WHEN v_remaining >= p_required_count THEN
+                format('%s validações disponíveis', v_remaining)
+            ELSE
+                format('Limite excedido. Apenas %s validações restantes', v_remaining)
+        END;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION tenant.check_quota(INTEGER, INTEGER) IS
+'Verifica se a organização tem quota disponível';
+
+-- ================================================
+-- GRANT PERMISSIONS
+-- ================================================
+
+GRANT ALL ON TABLE tenant.quota_history TO sparknexus;
+GRANT ALL ON FUNCTION tenant.increment_validation_usage(INTEGER, INTEGER) TO sparknexus;
+GRANT ALL ON FUNCTION tenant.reset_monthly_quotas() TO sparknexus;
+GRANT ALL ON FUNCTION tenant.update_organization_settings(INTEGER, JSONB) TO sparknexus;
+GRANT ALL ON FUNCTION tenant.get_organization_setting(INTEGER, TEXT) TO sparknexus;
+GRANT ALL ON FUNCTION tenant.check_quota(INTEGER, INTEGER) TO sparknexus;
+
+-- ================================================
+-- VERIFICAÇÃO FINAL
+-- ================================================
+
+DO $$
+BEGIN
+    RAISE NOTICE 'Migration 003_fix_quota_functions_integer_id aplicada com sucesso!';
+    RAISE NOTICE 'Funções corrigidas para usar INTEGER em vez de UUID:';
+    RAISE NOTICE '  - increment_validation_usage()';
+    RAISE NOTICE '  - reset_monthly_quotas()';
+    RAISE NOTICE '  - update_organization_settings()';
+    RAISE NOTICE '  - get_organization_setting()';
+    RAISE NOTICE '  - check_quota() [nova função auxiliar]';
+    RAISE NOTICE 'Tabela quota_history recriada com organization_id INTEGER';
+END $$;

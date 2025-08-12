@@ -1,0 +1,260 @@
+-- ================================================
+-- Migration: 002_add_active_settings_joined_columns
+-- Description: Adiciona colunas is_active, settings e updated_at em organizations e joined_at em organization_members
+-- Author: Spark Nexus Team
+-- Date: 2025-01-11
+-- ================================================
+
+-- ================================================
+-- ADICIONAR COLUNAS EM ORGANIZATIONS
+-- ================================================
+
+-- Coluna: is_active (status da organização)
+ALTER TABLE tenant.organizations
+ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
+COMMENT ON COLUMN tenant.organizations.is_active IS
+'Indica se a organização está ativa no sistema';
+
+-- Coluna: settings (configurações JSON)
+ALTER TABLE tenant.organizations
+ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}';
+
+COMMENT ON COLUMN tenant.organizations.settings IS
+'Configurações customizadas da organização em formato JSON';
+
+-- Coluna: updated_at (timestamp de atualização)
+ALTER TABLE tenant.organizations
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+COMMENT ON COLUMN tenant.organizations.updated_at IS
+'Data e hora da última atualização do registro';
+
+-- ================================================
+-- ADICIONAR COLUNA EM ORGANIZATION_MEMBERS
+-- ================================================
+
+-- Coluna: joined_at (data de entrada do membro)
+ALTER TABLE tenant.organization_members
+ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+COMMENT ON COLUMN tenant.organization_members.joined_at IS
+'Data e hora em que o membro entrou na organização';
+
+-- ================================================
+-- CRIAR ÍNDICES PARA PERFORMANCE
+-- ================================================
+
+-- Índice para filtrar organizações ativas
+CREATE INDEX IF NOT EXISTS idx_organizations_is_active
+ON tenant.organizations(is_active)
+WHERE is_active = TRUE;
+
+-- Índice para updated_at (útil para queries de auditoria)
+CREATE INDEX IF NOT EXISTS idx_organizations_updated_at
+ON tenant.organizations(updated_at DESC);
+
+-- Índice GIN para busca em JSONB settings
+CREATE INDEX IF NOT EXISTS idx_organizations_settings
+ON tenant.organizations USING GIN(settings);
+
+-- Índice para joined_at em organization_members
+CREATE INDEX IF NOT EXISTS idx_organization_members_joined_at
+ON tenant.organization_members(joined_at DESC);
+
+-- Índice composto para queries de membros por organização e data
+CREATE INDEX IF NOT EXISTS idx_organization_members_org_joined
+ON tenant.organization_members(organization_id, joined_at DESC);
+
+-- ================================================
+-- CRIAR TRIGGER PARA ATUALIZAR updated_at
+-- ================================================
+
+-- Criar função para atualizar timestamp
+CREATE OR REPLACE FUNCTION tenant.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION tenant.update_updated_at_column() IS
+'Função trigger para atualizar automaticamente a coluna updated_at';
+
+-- Criar trigger em organizations
+DROP TRIGGER IF EXISTS update_organizations_updated_at ON tenant.organizations;
+
+CREATE TRIGGER update_organizations_updated_at
+    BEFORE UPDATE ON tenant.organizations
+    FOR EACH ROW
+    EXECUTE FUNCTION tenant.update_updated_at_column();
+
+COMMENT ON TRIGGER update_organizations_updated_at ON tenant.organizations IS
+'Trigger para atualizar automaticamente updated_at em cada UPDATE';
+
+-- ================================================
+-- POPULAR DADOS INICIAIS SE NECESSÁRIO
+-- ================================================
+
+-- Garantir que todas as organizações existentes tenham is_active = true
+UPDATE tenant.organizations
+SET is_active = TRUE
+WHERE is_active IS NULL;
+
+-- Inicializar settings como objeto vazio se NULL
+UPDATE tenant.organizations
+SET settings = '{}'::JSONB
+WHERE settings IS NULL;
+
+-- Definir updated_at para registros existentes sem valor
+UPDATE tenant.organizations
+SET updated_at = COALESCE(created_at, CURRENT_TIMESTAMP)
+WHERE updated_at IS NULL;
+
+-- Definir joined_at para membros existentes sem valor
+UPDATE tenant.organization_members om
+SET joined_at = COALESCE(
+    (SELECT created_at FROM tenant.organizations o WHERE o.id = om.organization_id),
+    CURRENT_TIMESTAMP
+)
+WHERE joined_at IS NULL;
+
+-- ================================================
+-- CRIAR FUNÇÕES AUXILIARES PARA SETTINGS
+-- ================================================
+
+-- Função para atualizar settings (merge)
+CREATE OR REPLACE FUNCTION tenant.update_organization_settings(
+    p_organization_id UUID,
+    p_settings JSONB
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_current_settings JSONB;
+    v_new_settings JSONB;
+BEGIN
+    -- Obter settings atuais
+    SELECT settings
+    INTO v_current_settings
+    FROM tenant.organizations
+    WHERE id = p_organization_id
+    FOR UPDATE;
+
+    -- Verificar se encontrou a organização
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Organização com ID % não encontrada', p_organization_id;
+    END IF;
+
+    -- Fazer merge dos settings
+    v_new_settings := v_current_settings || p_settings;
+
+    -- Atualizar settings
+    UPDATE tenant.organizations
+    SET settings = v_new_settings
+    WHERE id = p_organization_id;
+
+    RETURN v_new_settings;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION tenant.update_organization_settings(UUID, JSONB) IS
+'Atualiza configurações da organização fazendo merge com as existentes';
+
+-- Função para obter valor específico de settings
+CREATE OR REPLACE FUNCTION tenant.get_organization_setting(
+    p_organization_id UUID,
+    p_key TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_value JSONB;
+BEGIN
+    SELECT settings->p_key
+    INTO v_value
+    FROM tenant.organizations
+    WHERE id = p_organization_id;
+
+    RETURN v_value;
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION tenant.get_organization_setting(UUID, TEXT) IS
+'Obtém valor específico das configurações da organização';
+
+-- ================================================
+-- CRIAR VIEW ATUALIZADA COM NOVAS COLUNAS
+-- ================================================
+
+CREATE OR REPLACE VIEW tenant.v_organization_details AS
+SELECT
+    o.id,
+    o.name,
+    o.slug,
+    o.plan,
+    o.is_active,
+    o.settings,
+    o.max_validations,
+    o.validations_used,
+    o.max_validations - o.validations_used AS validations_remaining,
+    o.created_at,
+    o.updated_at,
+    o.last_reset_date,
+    o.billing_cycle_day,
+    COUNT(DISTINCT om.user_id) AS member_count,
+    MIN(om.joined_at) AS first_member_joined,
+    MAX(om.joined_at) AS last_member_joined
+FROM tenant.organizations o
+LEFT JOIN tenant.organization_members om ON o.id = om.organization_id
+GROUP BY
+    o.id, o.name, o.slug, o.plan, o.is_active, o.settings,
+    o.max_validations, o.validations_used, o.created_at,
+    o.updated_at, o.last_reset_date, o.billing_cycle_day;
+
+COMMENT ON VIEW tenant.v_organization_details IS
+'View detalhada com informações das organizações incluindo contagem de membros';
+
+-- ================================================
+-- CRIAR VIEW DE MEMBROS COM INFORMAÇÕES COMPLETAS
+-- ================================================
+
+CREATE OR REPLACE VIEW tenant.v_organization_members_details AS
+SELECT
+    om.organization_id,
+    om.user_id,
+    om.role,
+    om.joined_at,
+    o.name AS organization_name,
+    o.slug AS organization_slug,
+    o.is_active AS organization_active,
+    DATE_PART('day', NOW() - om.joined_at) AS days_as_member
+FROM tenant.organization_members om
+INNER JOIN tenant.organizations o ON om.organization_id = o.id
+ORDER BY om.joined_at DESC;
+
+COMMENT ON VIEW tenant.v_organization_members_details IS
+'View detalhada dos membros das organizações com informações calculadas';
+
+-- ================================================
+-- GRANT PERMISSIONS
+-- ================================================
+
+-- Garantir permissões para o usuário da aplicação
+GRANT ALL ON FUNCTION tenant.update_updated_at_column() TO sparknexus;
+GRANT ALL ON FUNCTION tenant.update_organization_settings(UUID, JSONB) TO sparknexus;
+GRANT ALL ON FUNCTION tenant.get_organization_setting(UUID, TEXT) TO sparknexus;
+GRANT SELECT ON tenant.v_organization_details TO sparknexus;
+GRANT SELECT ON tenant.v_organization_members_details TO sparknexus;
+
+-- ================================================
+-- VERIFICAÇÃO FINAL
+-- ================================================
+
+DO $$
+BEGIN
+    RAISE NOTICE 'Migration 001_add_quota_system aplicada com sucesso!';
+    RAISE NOTICE 'Tabelas alteradas: tenant.organizations';
+    RAISE NOTICE 'Tabelas criadas: tenant.quota_history';
+    RAISE NOTICE 'Funções criadas: reset_monthly_quotas(), increment_validation_usage()';
+    RAISE NOTICE 'View criada: v_organization_quotas';
+END $$;

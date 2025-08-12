@@ -27,14 +27,23 @@ const ReportEmailService = require('./services/reports/ReportEmailService');
 const reportEmailService = new ReportEmailService();
 const UltimateValidator = require('./ultimateValidator');
 
-// Sistema de Quota
-const quotaMiddleware = require('./middleware/quotaMiddleware');
-const quotaForSingle = quotaMiddleware.quotaForSingle;
-const quotaForBatch = quotaMiddleware.quotaForBatch;
-const quotaForUpload = quotaMiddleware.quotaForUpload;
-const getQuotaStats = quotaMiddleware.getQuotaStats;
-console.log('[QUOTA] Sistema de quota carregado');
-
+// Sistema de Quota (Opcional - comentar se não quiser usar)
+let quotaForSingle, quotaForBatch, quotaForUpload, getQuotaStats;
+try {
+    const quotaMiddleware = require('./middleware/quotaMiddleware');
+    quotaForSingle = quotaMiddleware.quotaForSingle;
+    quotaForBatch = quotaMiddleware.quotaForBatch;
+    quotaForUpload = quotaMiddleware.quotaForUpload;
+    getQuotaStats = quotaMiddleware.getQuotaStats;
+    console.log('[QUOTA] Sistema de quota carregado');
+} catch (error) {
+    console.log('[QUOTA] Sistema de quota desabilitado:', error.message);
+    // Criar middlewares vazios se quota não estiver disponível
+    quotaForSingle = (req, res, next) => next();
+    quotaForBatch = (req, res, next) => next();
+    quotaForUpload = (req, res, next) => next();
+    getQuotaStats = (req, res) => res.json({ error: 'Sistema de quota não configurado' });
+}
 const ultimateValidator = new UltimateValidator({
     enableSMTP: true,
     enableCache: true,
@@ -166,270 +175,6 @@ const getUserFullData = async (userId) => {
         console.error('Erro ao buscar dados completos do usuário:', error);
         return null;
     }
-};
-
-// ================================================
-// FUNÇÃO AUXILIAR PARA PARSE DE CSV - MANTÉM DUPLICADOS
-// ================================================
-const parseCSVContent = (csvContent) => {
-    // Remover BOM se existir e normalizar quebras de linha
-    const cleanContent = csvContent
-        .replace(/^\uFEFF/, '') // Remove BOM
-        .replace(/\r\n/g, '\n') // Normaliza quebras de linha Windows
-        .replace(/\r/g, '\n');   // Normaliza quebras de linha Mac
-
-    // Dividir em linhas - NÃO filtrar ainda para contar corretamente
-    const allLines = cleanContent.split('\n');
-
-    console.log(`Total de linhas brutas no arquivo: ${allLines.length}`);
-
-    const allEmailsWithLineInfo = []; // Array com email e linha original
-    const invalidEmails = []; // Apenas para tracking
-    const emailOccurrences = new Map(); // Para rastrear ocorrências de cada email
-    let skippedLines = [];
-
-    // Detectar o delimitador usado no arquivo
-    let delimiter = ','; // padrão
-    let hasHeader = false;
-    let columnCount = 1; // número de colunas esperadas
-
-    // Verificar primeira linha não vazia para detectar delimitador e cabeçalho
-    let firstNonEmptyLine = '';
-    for (let line of allLines) {
-        if (line.trim()) {
-            firstNonEmptyLine = line.trim();
-            break;
-        }
-    }
-
-    if (firstNonEmptyLine) {
-        // Contar ocorrências de possíveis delimitadores
-        const tabCount = (firstNonEmptyLine.match(/\t/g) || []).length;
-        const commaCount = (firstNonEmptyLine.match(/,/g) || []).length;
-        const semicolonCount = (firstNonEmptyLine.match(/;/g) || []).length;
-
-        // Escolher o delimitador mais frequente
-        if (tabCount > 0 && tabCount >= commaCount && tabCount >= semicolonCount) {
-            delimiter = '\t';
-            columnCount = tabCount + 1;
-            console.log(`Delimitador detectado: TAB (${columnCount} colunas)`);
-        } else if (semicolonCount > commaCount) {
-            delimiter = ';';
-            columnCount = semicolonCount + 1;
-            console.log(`Delimitador detectado: ponto-e-vírgula (${columnCount} colunas)`);
-        } else if (commaCount > 0) {
-            delimiter = ',';
-            columnCount = commaCount + 1;
-            console.log(`Delimitador detectado: vírgula (${columnCount} colunas)`);
-        } else {
-            delimiter = 'none';
-            columnCount = 1;
-            console.log('Nenhum delimitador detectado - arquivo com uma coluna');
-        }
-
-        // Verificar se é cabeçalho
-        const firstLineLower = firstNonEmptyLine.toLowerCase();
-        if (firstLineLower.includes('email') || firstLineLower.includes('e-mail') || firstLineLower.includes('mail')) {
-            hasHeader = true;
-            console.log('Cabeçalho detectado:', firstNonEmptyLine);
-        }
-    }
-
-    // Processar TODAS as linhas
-    let lineNumber = 0;
-    let headerSkipped = false;
-
-    for (let i = 0; i < allLines.length; i++) {
-        const line = allLines[i];
-        lineNumber++;
-
-        // Se linha está completamente vazia, pular
-        if (!line || line.trim() === '') {
-            skippedLines.push({ line: lineNumber, reason: 'Linha vazia' });
-            continue;
-        }
-
-        // Se é cabeçalho e ainda não pulamos
-        if (hasHeader && !headerSkipped) {
-            const lineLower = line.toLowerCase();
-            if (lineLower.includes('email') || lineLower.includes('e-mail') || lineLower.includes('mail')) {
-                headerSkipped = true;
-                console.log(`Pulando cabeçalho na linha ${lineNumber}: "${line.trim()}"`);
-                continue;
-            }
-        }
-
-        const trimmedLine = line.trim();
-        console.log(`Processando linha ${lineNumber}: "${trimmedLine.substring(0, 50)}${trimmedLine.length > 50 ? '...' : ''}"`);
-
-        // Extrair email da linha
-        let emailValue = '';
-
-        if (delimiter === 'none') {
-            // Arquivo com apenas uma coluna
-            emailValue = trimmedLine.replace(/^["']|["']$/g, '');
-        } else {
-            // Para CSV com múltiplas colunas, precisamos ser mais cuidadosos
-            // Verificar se o número de delimitadores corresponde ao esperado
-            const delimiterCount = (trimmedLine.match(new RegExp(delimiter === '.' ? '\\.' : delimiter, 'g')) || []).length;
-
-            if (delimiterCount === columnCount - 1) {
-                // Número esperado de colunas
-                const values = trimmedLine.split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
-                emailValue = values[0] || '';
-            } else if (delimiterCount === columnCount) {
-                // Possível caso especial: email incompleto com extensão na próxima coluna
-                const values = trimmedLine.split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
-
-                // Verificar se parece ser um email quebrado (ex: "usuario@dominio,top")
-                if (values[0] && values[0].includes('@') && !values[0].includes('.')) {
-                    // Se o primeiro valor tem @ mas não tem ponto, e o segundo valor parece uma extensão
-                    if (values[1] && /^[a-z]{2,}$/i.test(values[1])) {
-                        emailValue = values[0] + '.' + values[1];
-                        console.log(`  → Email reconstruído: ${emailValue}`);
-                    } else {
-                        emailValue = values[0];
-                    }
-                } else {
-                    emailValue = values[0] || '';
-                }
-            } else {
-                // Número inesperado de colunas - tentar extrair o email mesmo assim
-                const values = trimmedLine.split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
-
-                // Procurar o valor que mais parece um email
-                for (let val of values) {
-                    if (val && (val.includes('@') || val.includes('.') || val.length > 3)) {
-                        emailValue = val;
-                        break;
-                    }
-                }
-
-                // Se não encontrou, pegar o primeiro valor
-                if (!emailValue) {
-                    emailValue = values[0] || '';
-                }
-            }
-        }
-
-        // IMPORTANTE: Adicionar QUALQUER valor não vazio
-        if (emailValue && emailValue.trim()) {
-            emailValue = emailValue.trim();
-
-            // Converter para minúsculas para padronizar
-            const emailLower = emailValue.toLowerCase();
-
-            // Rastrear ocorrências para marcar duplicados
-            if (!emailOccurrences.has(emailLower)) {
-                emailOccurrences.set(emailLower, []);
-            }
-            emailOccurrences.get(emailLower).push(lineNumber);
-
-            // Adicionar à lista com informação da linha
-            allEmailsWithLineInfo.push({
-                email: emailLower,
-                originalLine: lineNumber,
-                originalValue: emailValue // Preservar formato original
-            });
-
-            // Verificar se é válido apenas para logging
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-            if (emailRegex.test(emailValue)) {
-                console.log(`  ✓ Email com formato válido: ${emailValue}`);
-            } else {
-                invalidEmails.push({
-                    line: lineNumber,
-                    value: emailValue,
-                    reason: 'Formato de email inválido'
-                });
-                console.log(`  ⚠ Email com formato inválido (será validado mesmo assim): ${emailValue}`);
-            }
-        } else {
-            skippedLines.push({ line: lineNumber, reason: 'Sem conteúdo de email' });
-            console.log(`  ⏩ Linha ${lineNumber} pulada - sem conteúdo`);
-        }
-    }
-
-    // Marcar duplicados no array de emails
-    const emailsWithDuplicateInfo = allEmailsWithLineInfo.map(item => {
-        const occurrences = emailOccurrences.get(item.email);
-        const isDuplicate = occurrences.length > 1;
-        const duplicateIndex = isDuplicate ? occurrences.indexOf(item.originalLine) + 1 : 0;
-
-        return {
-            ...item,
-            isDuplicate: isDuplicate,
-            duplicateCount: occurrences.length,
-            duplicateIndex: duplicateIndex, // 1ª, 2ª, 3ª ocorrência etc
-            allOccurrences: occurrences
-        };
-    });
-
-    // Estatísticas
-    const uniqueEmailCount = emailOccurrences.size;
-    const totalEmailCount = allEmailsWithLineInfo.length;
-    const duplicatesCount = totalEmailCount - uniqueEmailCount;
-
-    // Listar emails que aparecem mais de uma vez
-    const duplicatesList = [];
-    emailOccurrences.forEach((lines, email) => {
-        if (lines.length > 1) {
-            duplicatesList.push({
-                email: email,
-                lines: lines,
-                count: lines.length
-            });
-        }
-    });
-
-    console.log('\n=== Resumo do processamento do CSV ===');
-    console.log(`Total de linhas no arquivo: ${allLines.length}`);
-    console.log(`Linhas processadas: ${allLines.length - skippedLines.length}`);
-    console.log(`Linhas puladas: ${skippedLines.length}`);
-    console.log(`Total de emails extraídos: ${totalEmailCount}`);
-    console.log(`Emails únicos: ${uniqueEmailCount}`);
-    console.log(`Emails duplicados: ${duplicatesCount}`);
-    console.log(`Emails com formato inválido: ${invalidEmails.length}`);
-
-    if (duplicatesList.length > 0) {
-        console.log('\nEmails que aparecem mais de uma vez:');
-        duplicatesList.forEach(dup => {
-            console.log(`  - "${dup.email}" aparece ${dup.count} vezes nas linhas: ${dup.lines.join(', ')}`);
-        });
-    }
-
-    // Lista final de emails para verificação
-    console.log(`\n=== TOTAL DE EMAILS A PROCESSAR: ${totalEmailCount} ===`);
-    if (totalEmailCount <= 10) {
-        emailsWithDuplicateInfo.forEach((item, idx) => {
-            const dupInfo = item.isDuplicate ? ` (duplicado ${item.duplicateIndex}/${item.duplicateCount})` : '';
-            console.log(`  ${idx + 1}. ${item.email}${dupInfo}`);
-        });
-    } else {
-        emailsWithDuplicateInfo.slice(0, 5).forEach((item, idx) => {
-            const dupInfo = item.isDuplicate ? ` (duplicado ${item.duplicateIndex}/${item.duplicateCount})` : '';
-            console.log(`  ${idx + 1}. ${item.email}${dupInfo}`);
-        });
-        console.log(`  ... e mais ${totalEmailCount - 5} emails`);
-    }
-
-    return {
-        emails: emailsWithDuplicateInfo, // TODOS os emails com informação de duplicados
-        emailsList: emailsWithDuplicateInfo.map(e => e.email), // Lista simples para validação
-        invalidFormatEmails: invalidEmails, // Info sobre emails com formato inválido
-        duplicatesList: duplicatesList, // Lista de duplicados
-        skippedLines: skippedLines,
-        stats: {
-            totalLines: allLines.length,
-            processedLines: allLines.length - skippedLines.length,
-            totalEmails: totalEmailCount,
-            uniqueEmails: uniqueEmailCount,
-            duplicatesCount: duplicatesCount,
-            invalidFormatCount: invalidEmails.length,
-            skippedLinesCount: skippedLines.length
-        }
-    };
 };
 
 // ================================================
@@ -863,9 +608,8 @@ app.get('/api/auth/verify', authenticateToken, (req, res) => {
         valid: true,
         user: req.user
     });
-});
 
-// Endpoint de Quota
+// Endpoint de Quota (opcional)
 app.get('/api/user/quota', authenticateToken, getQuotaStats);
 
 // Endpoint de quota simplificado
@@ -893,6 +637,7 @@ app.get('/api/user/quota/summary', authenticateToken, async (req, res) => {
         console.error('Erro ao buscar quota:', error);
         res.status(500).json({ error: 'Sistema de quota não configurado' });
     }
+});
 });
 
 // Logout
@@ -937,9 +682,7 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
     }
 });
 
-// ================================================
-// UPLOAD DE CSV PARA VALIDAÇÃO - MANTÉM TODOS OS 264 EMAILS
-// ================================================
+// Upload de CSV para validação
 app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -955,136 +698,31 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
 
         console.log('Dados do usuário recuperados:', userData);
 
-        // Processar arquivo CSV com a função que mantém duplicados
+        // Processar arquivo
         const fs = require('fs').promises;
         const csvContent = await fs.readFile(req.file.path, 'utf-8');
+        const lines = csvContent.split('\n').filter(line => line.trim());
+        const emails = [];
 
-        // Usar a função de parse que mantém duplicados
-        const parseResult = parseCSVContent(csvContent);
+        for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split(',').map(v => v.trim());
+            if (values[0]) {
+                emails.push(values[0]);
+            }
+        }
 
         // Limpar arquivo temporário
-        try {
-            await fs.unlink(req.file.path);
-            console.log('Arquivo temporário removido');
-        } catch (err) {
-            console.error('Erro ao remover arquivo temporário:', err);
-        }
-
-        // Verificar se encontrou algum email
-        if (parseResult.emailsList.length === 0) {
-            return res.status(400).json({
-                error: 'Nenhum email encontrado no arquivo',
-                details: {
-                    stats: parseResult.stats,
-                    message: 'O arquivo parece estar vazio ou em formato não reconhecido'
-                }
-            });
-        }
-
-        const emailsList = parseResult.emailsList; // Lista simples para validação
-        const emailsWithInfo = parseResult.emails; // Lista com informações de duplicados
-
-        console.log(`\n📧 TOTAL: ${emailsList.length} emails para validação (incluindo duplicados)`);
-        console.log(`📊 ${parseResult.stats.uniqueEmails} emails únicos`);
-        console.log(`🔄 ${parseResult.stats.duplicatesCount} duplicados mantidos para transparência`);
-
-        // ================================================
-        // VERIFICAR E CONSUMIR QUOTA
-        // ================================================
-        let quotaInfo = null;
-        try {
-            const QuotaService = require('./services/QuotaService');
-            const quotaService = new QuotaService(db.pool, db.redis);
-
-            // Buscar organização do usuário
-            const organization = await quotaService.getUserOrganization(req.user.id);
-
-            if (organization) {
-                // Verificar se tem quota suficiente para TODOS os emails (incluindo duplicados)
-                const quotaCheck = await quotaService.checkQuota(organization.id, emailsList.length);
-
-                if (!quotaCheck.allowed) {
-                    return res.status(429).json({
-                        error: 'Limite de validações excedido',
-                        code: 'QUOTA_EXCEEDED',
-                        details: {
-                            message: quotaCheck.message,
-                            limit: quotaCheck.limit,
-                            used: quotaCheck.used,
-                            remaining: quotaCheck.remaining,
-                            requested: emailsList.length,
-                            plan: organization.plan
-                        },
-                        suggestions: [
-                            'Reduza a quantidade de emails no arquivo',
-                            'Aguarde até o próximo período de faturamento',
-                            'Faça upgrade do seu plano'
-                        ]
-                    });
-                }
-
-                console.log(`[QUOTA] Processando ${emailsList.length} emails para ${organization.name}`);
-                quotaInfo = {
-                    organization: organization.name,
-                    plan: organization.plan,
-                    limit: quotaCheck.limit,
-                    used: quotaCheck.used,
-                    remaining: quotaCheck.remaining
-                };
-            }
-        } catch (quotaError) {
-            console.error('[QUOTA] Erro ao verificar quota:', quotaError.message);
-            // Continuar sem quota se houver erro
-        }
+        await fs.unlink(req.file.path);
 
         // Criar job de validação
         const jobId = uuidv4();
 
-        // Processar TODOS os emails com validador aprimorado
-        console.log(`\n🔍 Iniciando validação de ${emailsList.length} emails...`);
-        const validationPromises = emailsList.map(email => ultimateValidator.validateEmail(email));
+        // Processar emails com validador aprimorado
+        console.log(`Iniciando validação de ${emails.length} emails...`);
+        const validationPromises = emails.map(email => ultimateValidator.validateEmail(email));
         const validationResults = await Promise.all(validationPromises);
 
-        // Adicionar informação de duplicados aos resultados
-        const validationResultsWithDuplicateInfo = validationResults.map((result, index) => {
-            const emailInfo = emailsWithInfo[index];
-            return {
-                ...result,
-                isDuplicate: emailInfo.isDuplicate,
-                duplicateIndex: emailInfo.duplicateIndex,
-                duplicateCount: emailInfo.duplicateCount,
-                originalLine: emailInfo.originalLine
-            };
-        });
-
-        // ================================================
-        // INCREMENTAR QUOTA APÓS SUCESSO
-        // ================================================
-        if (quotaInfo) {
-            try {
-                const QuotaService = require('./services/QuotaService');
-                const quotaService = new QuotaService(db.pool, db.redis);
-                const organization = await quotaService.getUserOrganization(req.user.id);
-
-                if (organization) {
-                    const incrementResult = await quotaService.incrementUsage(organization.id, emailsList.length);
-                    console.log(`[QUOTA] Incrementado ${emailsList.length} validações. Restam: ${incrementResult.remaining}`);
-
-                    // Atualizar quotaInfo
-                    quotaInfo.remaining = incrementResult.remaining;
-                    quotaInfo.used = organization.validations_used + emailsList.length;
-
-                    // Adicionar headers de quota na resposta
-                    res.set({
-                        'X-RateLimit-Limit': organization.max_validations,
-                        'X-RateLimit-Remaining': incrementResult.remaining,
-                        'X-RateLimit-Used': organization.validations_used + emailsList.length
-                    });
-                }
-            } catch (quotaError) {
-                console.error('[QUOTA] Erro ao incrementar uso:', quotaError.message);
-            }
-        }
+        console.log('Resultados da validação:', validationResults);
 
         // Preparar informações do usuário para o relatório
         const userInfo = {
@@ -1094,24 +732,23 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
             phone: userData.phone
         };
 
-        // Gerar e enviar relatório com informações de duplicados
-        console.log(`\n📊 Enviando relatório com ${validationResultsWithDuplicateInfo.length} emails para: ${userData.email}`);
+        // Gerar e enviar relatório para o email do usuário
+        console.log(`Enviando relatório para: ${userData.email}`);
         const reportResult = await reportEmailService.generateAndSendReport(
-            validationResultsWithDuplicateInfo, // Passar resultados com info de duplicados
-            userData.email,
+            validationResults,
+            userData.email, // Email do usuário autenticado
             userInfo
         );
 
-        console.log('✅ Relatório enviado com sucesso');
+        console.log('Resultado do relatório:', reportResult);
 
         // Estatísticas
         const validCount = validationResults.filter(r => r.valid).length;
         const avgScore = validationResults.reduce((acc, r) => acc + r.score, 0) / validationResults.length;
 
-        // Resposta completa
         res.json({
             success: true,
-            message: `${emailsList.length} emails validados com sucesso! O relatório será enviado por e-mail.`,
+            message: `${emails.length} emails validados com sucesso! O relatório será enviado por e-mail.`,
             jobId,
             user: {
                 name: userData.fullName,
@@ -1119,32 +756,21 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
                 company: userData.company
             },
             stats: {
-                total: emailsList.length,
-                unique: parseResult.stats.uniqueEmails,
-                duplicates: parseResult.stats.duplicatesCount,
+                total: emails.length,
                 valid: validCount,
-                invalid: emailsList.length - validCount,
-                averageScore: Math.round(avgScore),
-                invalidFormat: parseResult.stats.invalidFormatCount
+                invalid: emails.length - validCount,
+                averageScore: Math.round(avgScore)
             },
-            quota: quotaInfo,
             reportSent: true,
             reportDetails: {
                 sentTo: userData.email,
                 filename: reportResult.filename,
                 sentAt: new Date().toISOString()
-            },
-            parseDetails: {
-                totalLinesInFile: parseResult.stats.totalLines,
-                totalLinesProcessed: parseResult.stats.processedLines,
-                totalEmails: parseResult.stats.totalEmails,
-                uniqueEmails: parseResult.stats.uniqueEmails,
-                duplicatesInfo: parseResult.duplicatesList.slice(0, 5) // Mostra até 5 emails duplicados
             }
         });
     } catch (error) {
-        console.error('❌ Erro no upload:', error);
-        res.status(500).json({ error: 'Erro ao processar arquivo: ' + error.message });
+        console.error('Erro no upload:', error);
+        res.status(500).json({ error: 'Erro ao processar arquivo' });
     }
 });
 
@@ -1499,7 +1125,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     - GET  /api/auth/verify
     - POST /api/auth/logout
     - GET  /api/stats
-    - POST /api/upload (Processa TODOS os 264 emails, marcando duplicados)
+    - POST /api/upload
     - POST /api/validate/single
     - POST /api/validate/advanced
     - POST /api/validate/batch
@@ -1509,8 +1135,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     - GET  /api/reports/download/:filename
     - POST /api/reports/generate
     - GET  /api/user/profile
-    - GET  /api/user/quota
-    - GET  /api/user/quota/summary
 
     HEALTH:
     - GET  /api/health

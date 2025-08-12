@@ -32,10 +32,6 @@ class ReportEmailService {
                 throw new Error('Falha ao gerar relatório');
             }
 
-            console.log('emailService: ', this.emailService);
-            console.log('recipientEmail: ', recipientEmail);
-
-
             // Se EmailService existir, enviar email
             if (this.emailService && recipientEmail) {
                 console.log('📧 Enviando relatório por email...');
