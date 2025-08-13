@@ -169,8 +169,11 @@ const getUserFullData = async (userId) => {
 };
 
 // ================================================
-// FUNÇÃO AUXILIAR PARA PARSE DE CSV - MANTÉM DUPLICADOS
+// FUNÇÃO AUXILIAR PARA PARSE DE CSV - COM CORREÇÃO DE TYPOS
 // ================================================
+const DomainCorrector = require('./services/validators/advanced/DomainCorrector');
+const domainCorrector = new DomainCorrector();
+
 const parseCSVContent = (csvContent) => {
     // Remover BOM se existir e normalizar quebras de linha
     const cleanContent = csvContent
@@ -185,7 +188,9 @@ const parseCSVContent = (csvContent) => {
 
     const allEmailsWithLineInfo = []; // Array com email e linha original
     const invalidEmails = []; // Apenas para tracking
+    const correctedEmails = []; // NOVO - emails que foram corrigidos
     const emailOccurrences = new Map(); // Para rastrear ocorrências de cada email
+    const correctionMap = new Map(); // NOVO - mapa de correções feitas
     let skippedLines = [];
 
     // Detectar o delimitador usado no arquivo
@@ -207,6 +212,7 @@ const parseCSVContent = (csvContent) => {
         const tabCount = (firstNonEmptyLine.match(/\t/g) || []).length;
         const commaCount = (firstNonEmptyLine.match(/,/g) || []).length;
         const semicolonCount = (firstNonEmptyLine.match(/;/g) || []).length;
+        const pipeCount = (firstNonEmptyLine.match(/\|/g) || []).length;
 
         // Escolher o delimitador mais frequente
         if (tabCount > 0 && tabCount >= commaCount && tabCount >= semicolonCount) {
@@ -217,6 +223,10 @@ const parseCSVContent = (csvContent) => {
             delimiter = ';';
             columnCount = semicolonCount + 1;
             console.log(`Delimitador detectado: ponto-e-vírgula (${columnCount} colunas)`);
+        } else if (pipeCount > commaCount) {
+            delimiter = '|';
+            columnCount = pipeCount + 1;
+            console.log(`Delimitador detectado: pipe (${columnCount} colunas)`);
         } else if (commaCount > 0) {
             delimiter = ',';
             columnCount = commaCount + 1;
@@ -229,7 +239,9 @@ const parseCSVContent = (csvContent) => {
 
         // Verificar se é cabeçalho
         const firstLineLower = firstNonEmptyLine.toLowerCase();
-        if (firstLineLower.includes('email') || firstLineLower.includes('e-mail') || firstLineLower.includes('mail')) {
+        if (firstLineLower.includes('email') || firstLineLower.includes('e-mail') ||
+            firstLineLower.includes('mail') || firstLineLower.includes('correo') ||
+            firstLineLower.includes('endereço')) {
             hasHeader = true;
             console.log('Cabeçalho detectado:', firstNonEmptyLine);
         }
@@ -238,6 +250,7 @@ const parseCSVContent = (csvContent) => {
     // Processar TODAS as linhas
     let lineNumber = 0;
     let headerSkipped = false;
+    let totalCorrections = 0;
 
     for (let i = 0; i < allLines.length; i++) {
         const line = allLines[i];
@@ -252,7 +265,8 @@ const parseCSVContent = (csvContent) => {
         // Se é cabeçalho e ainda não pulamos
         if (hasHeader && !headerSkipped) {
             const lineLower = line.toLowerCase();
-            if (lineLower.includes('email') || lineLower.includes('e-mail') || lineLower.includes('mail')) {
+            if (lineLower.includes('email') || lineLower.includes('e-mail') ||
+                lineLower.includes('mail') || lineLower.includes('correo')) {
                 headerSkipped = true;
                 console.log(`Pulando cabeçalho na linha ${lineNumber}: "${line.trim()}"`);
                 continue;
@@ -267,11 +281,14 @@ const parseCSVContent = (csvContent) => {
 
         if (delimiter === 'none') {
             // Arquivo com apenas uma coluna
-            emailValue = trimmedLine.replace(/^["']|["']$/g, '');
+            emailValue = trimmedLine.replace(/^["']|["']$/g, '').trim();
         } else {
-            // Para CSV com múltiplas colunas, precisamos ser mais cuidadosos
-            // Verificar se o número de delimitadores corresponde ao esperado
-            const delimiterCount = (trimmedLine.match(new RegExp(delimiter === '.' ? '\\.' : delimiter, 'g')) || []).length;
+            // Para CSV com múltiplas colunas
+            const delimiterCount = (trimmedLine.match(new RegExp(
+                delimiter === '.' ? '\\.' :
+                delimiter === '|' ? '\\|' :
+                delimiter, 'g'
+            )) || []).length;
 
             if (delimiterCount === columnCount - 1) {
                 // Número esperado de colunas
@@ -281,7 +298,7 @@ const parseCSVContent = (csvContent) => {
                 // Possível caso especial: email incompleto com extensão na próxima coluna
                 const values = trimmedLine.split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
 
-                // Verificar se parece ser um email quebrado (ex: "usuario@dominio,top")
+                // Verificar se parece ser um email quebrado (ex: "usuario@dominio,com")
                 if (values[0] && values[0].includes('@') && !values[0].includes('.')) {
                     // Se o primeiro valor tem @ mas não tem ponto, e o segundo valor parece uma extensão
                     if (values[1] && /^[a-z]{2,}$/i.test(values[1])) {
@@ -294,56 +311,98 @@ const parseCSVContent = (csvContent) => {
                     emailValue = values[0] || '';
                 }
             } else {
-                // Número inesperado de colunas - tentar extrair o email mesmo assim
+                // Número inesperado de colunas - tentar extrair o email
                 const values = trimmedLine.split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
 
                 // Procurar o valor que mais parece um email
                 for (let val of values) {
-                    if (val && (val.includes('@') || val.includes('.') || val.length > 3)) {
+                    if (val && val.includes('@')) {
                         emailValue = val;
                         break;
                     }
                 }
 
-                // Se não encontrou, pegar o primeiro valor
+                // Se não encontrou @ em nenhum campo, pegar o primeiro
                 if (!emailValue) {
                     emailValue = values[0] || '';
                 }
             }
         }
 
-        // IMPORTANTE: Adicionar QUALQUER valor não vazio
-        if (emailValue && emailValue.trim()) {
-            emailValue = emailValue.trim();
+        // Limpar espaços extras e caracteres especiais comuns
+        emailValue = emailValue
+            .trim()
+            .replace(/^[<\[\{\(]/, '') // Remove caracteres de abertura
+            .replace(/[>\]\}\)]$/, '') // Remove caracteres de fechamento
+            .replace(/\s+/g, ''); // Remove espaços internos
 
+        // IMPORTANTE: Adicionar QUALQUER valor não vazio
+        if (emailValue) {
             // Converter para minúsculas para padronizar
             const emailLower = emailValue.toLowerCase();
 
-            // Rastrear ocorrências para marcar duplicados
-            if (!emailOccurrences.has(emailLower)) {
-                emailOccurrences.set(emailLower, []);
+            // ================================================
+            // NOVO: APLICAR CORREÇÃO DE DOMÍNIO
+            // ================================================
+            let finalEmail = emailLower;
+            let wasCorrected = false;
+            let correctionDetails = null;
+
+            const correctionResult = domainCorrector.correctEmail(emailLower);
+
+            if (correctionResult.wasCorrected) {
+                totalCorrections++;
+                wasCorrected = true;
+                correctionDetails = correctionResult.correction;
+                finalEmail = correctionResult.corrected;
+
+                // Adicionar à lista de emails corrigidos
+                correctedEmails.push({
+                    line: lineNumber,
+                    original: emailLower,
+                    corrected: finalEmail,
+                    correction: correctionDetails
+                });
+
+                // Guardar no mapa de correções
+                correctionMap.set(emailLower, {
+                    corrected: finalEmail,
+                    details: correctionDetails
+                });
+
+                console.log(`  ✏️ Email corrigido: ${emailLower} → ${finalEmail}`);
             }
-            emailOccurrences.get(emailLower).push(lineNumber);
+
+            // Rastrear ocorrências para marcar duplicados (usando email CORRIGIDO)
+            if (!emailOccurrences.has(finalEmail)) {
+                emailOccurrences.set(finalEmail, []);
+            }
+            emailOccurrences.get(finalEmail).push(lineNumber);
 
             // Adicionar à lista com informação da linha
             allEmailsWithLineInfo.push({
-                email: emailLower,
+                email: finalEmail,                    // Email final (corrigido se necessário)
+                originalEmail: emailLower,            // Email original do CSV
                 originalLine: lineNumber,
-                originalValue: emailValue // Preservar formato original
+                originalValue: emailValue,             // Valor exato do CSV
+                wasCorrected: wasCorrected,          // NOVO - flag de correção
+                correctionDetails: correctionDetails  // NOVO - detalhes da correção
             });
 
-            // Verificar se é válido apenas para logging
+            // Verificar formato do email FINAL
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-            if (emailRegex.test(emailValue)) {
-                console.log(`  ✓ Email com formato válido: ${emailValue}`);
+            if (emailRegex.test(finalEmail)) {
+                console.log(`  ✓ Email com formato válido: ${finalEmail}${wasCorrected ? ' (corrigido)' : ''}`);
             } else {
                 invalidEmails.push({
                     line: lineNumber,
-                    value: emailValue,
-                    reason: 'Formato de email inválido'
+                    value: finalEmail,
+                    original: emailLower,
+                    reason: 'Formato de email inválido após correção',
+                    wasCorrected: wasCorrected
                 });
-                console.log(`  ⚠ Email com formato inválido (será validado mesmo assim): ${emailValue}`);
+                console.log(`  ⚠ Email com formato inválido mesmo após correção: ${finalEmail}`);
             }
         } else {
             skippedLines.push({ line: lineNumber, reason: 'Sem conteúdo de email' });
@@ -383,6 +442,22 @@ const parseCSVContent = (csvContent) => {
         }
     });
 
+    // Listar correções únicas
+    const uniqueCorrections = new Map();
+    correctedEmails.forEach(item => {
+        const key = `${item.original}→${item.corrected}`;
+        if (!uniqueCorrections.has(key)) {
+            uniqueCorrections.set(key, {
+                from: item.original,
+                to: item.corrected,
+                type: item.correction.type,
+                count: 1
+            });
+        } else {
+            uniqueCorrections.get(key).count++;
+        }
+    });
+
     console.log('\n=== Resumo do processamento do CSV ===');
     console.log(`Total de linhas no arquivo: ${allLines.length}`);
     console.log(`Linhas processadas: ${allLines.length - skippedLines.length}`);
@@ -390,13 +465,24 @@ const parseCSVContent = (csvContent) => {
     console.log(`Total de emails extraídos: ${totalEmailCount}`);
     console.log(`Emails únicos: ${uniqueEmailCount}`);
     console.log(`Emails duplicados: ${duplicatesCount}`);
+    console.log(`Emails corrigidos: ${totalCorrections} (${((totalCorrections/totalEmailCount)*100).toFixed(1)}%)`);
     console.log(`Emails com formato inválido: ${invalidEmails.length}`);
 
+    if (totalCorrections > 0) {
+        console.log('\n🔧 Correções aplicadas:');
+        uniqueCorrections.forEach((correction, key) => {
+            console.log(`  - "${correction.from}" → "${correction.to}" (${correction.type}) - ${correction.count}x`);
+        });
+    }
+
     if (duplicatesList.length > 0) {
-        console.log('\nEmails que aparecem mais de uma vez:');
-        duplicatesList.forEach(dup => {
+        console.log('\n📋 Emails que aparecem mais de uma vez:');
+        duplicatesList.slice(0, 10).forEach(dup => {
             console.log(`  - "${dup.email}" aparece ${dup.count} vezes nas linhas: ${dup.lines.join(', ')}`);
         });
+        if (duplicatesList.length > 10) {
+            console.log(`  ... e mais ${duplicatesList.length - 10} emails duplicados`);
+        }
     }
 
     // Lista final de emails para verificação
@@ -404,21 +490,31 @@ const parseCSVContent = (csvContent) => {
     if (totalEmailCount <= 10) {
         emailsWithDuplicateInfo.forEach((item, idx) => {
             const dupInfo = item.isDuplicate ? ` (duplicado ${item.duplicateIndex}/${item.duplicateCount})` : '';
-            console.log(`  ${idx + 1}. ${item.email}${dupInfo}`);
+            const corrInfo = item.wasCorrected ? ' [CORRIGIDO]' : '';
+            console.log(`  ${idx + 1}. ${item.email}${dupInfo}${corrInfo}`);
+            if (item.wasCorrected) {
+                console.log(`     Original: ${item.originalEmail}`);
+            }
         });
     } else {
         emailsWithDuplicateInfo.slice(0, 5).forEach((item, idx) => {
             const dupInfo = item.isDuplicate ? ` (duplicado ${item.duplicateIndex}/${item.duplicateCount})` : '';
-            console.log(`  ${idx + 1}. ${item.email}${dupInfo}`);
+            const corrInfo = item.wasCorrected ? ' [CORRIGIDO]' : '';
+            console.log(`  ${idx + 1}. ${item.email}${dupInfo}${corrInfo}`);
+            if (item.wasCorrected) {
+                console.log(`     Original: ${item.originalEmail}`);
+            }
         });
         console.log(`  ... e mais ${totalEmailCount - 5} emails`);
     }
 
     return {
-        emails: emailsWithDuplicateInfo, // TODOS os emails com informação de duplicados
+        emails: emailsWithDuplicateInfo,              // TODOS os emails com informação de duplicados e correções
         emailsList: emailsWithDuplicateInfo.map(e => e.email), // Lista simples para validação
-        invalidFormatEmails: invalidEmails, // Info sobre emails com formato inválido
-        duplicatesList: duplicatesList, // Lista de duplicados
+        invalidFormatEmails: invalidEmails,           // Info sobre emails com formato inválido
+        duplicatesList: duplicatesList,                // Lista de duplicados
+        correctedEmails: correctedEmails,             // NOVO - Lista de emails corrigidos
+        correctionMap: correctionMap,                 // NOVO - Mapa de correções
         skippedLines: skippedLines,
         stats: {
             totalLines: allLines.length,
@@ -426,6 +522,8 @@ const parseCSVContent = (csvContent) => {
             totalEmails: totalEmailCount,
             uniqueEmails: uniqueEmailCount,
             duplicatesCount: duplicatesCount,
+            correctedCount: totalCorrections,         // NOVO - contador de correções
+            correctionRate: ((totalCorrections/totalEmailCount)*100).toFixed(2) + '%', // NOVO - taxa de correção
             invalidFormatCount: invalidEmails.length,
             skippedLinesCount: skippedLines.length
         }
@@ -937,8 +1035,9 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
     }
 });
 
+
 // ================================================
-// UPLOAD DE CSV PARA VALIDAÇÃO - MANTÉM TODOS OS 264 EMAILS
+// UPLOAD DE CSV PARA VALIDAÇÃO - COM CORREÇÃO DE TYPOS
 // ================================================
 app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
     try {
@@ -955,11 +1054,11 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
 
         console.log('Dados do usuário recuperados:', userData);
 
-        // Processar arquivo CSV com a função que mantém duplicados
+        // Processar arquivo CSV com a função que mantém duplicados E corrige typos
         const fs = require('fs').promises;
         const csvContent = await fs.readFile(req.file.path, 'utf-8');
 
-        // Usar a função de parse que mantém duplicados
+        // Usar a função de parse que mantém duplicados e corrige emails
         const parseResult = parseCSVContent(csvContent);
 
         // Limpar arquivo temporário
@@ -981,12 +1080,13 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
             });
         }
 
-        const emailsList = parseResult.emailsList; // Lista simples para validação
-        const emailsWithInfo = parseResult.emails; // Lista com informações de duplicados
+        const emailsList = parseResult.emailsList; // Lista simples para validação (já corrigida)
+        const emailsWithInfo = parseResult.emails; // Lista com informações de duplicados e correções
 
         console.log(`\n📧 TOTAL: ${emailsList.length} emails para validação (incluindo duplicados)`);
         console.log(`📊 ${parseResult.stats.uniqueEmails} emails únicos`);
         console.log(`🔄 ${parseResult.stats.duplicatesCount} duplicados mantidos para transparência`);
+        console.log(`✏️ ${parseResult.stats.correctedCount} emails corrigidos automaticamente`);
 
         // ================================================
         // VERIFICAR E CONSUMIR QUOTA
@@ -1041,19 +1141,35 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
         const jobId = uuidv4();
 
         // Processar TODOS os emails com validador aprimorado
+        // NOTA: Os emails já estão corrigidos, então o UltimateValidator não precisa corrigir novamente
         console.log(`\n🔍 Iniciando validação de ${emailsList.length} emails...`);
-        const validationPromises = emailsList.map(email => ultimateValidator.validateEmail(email));
+
+        // Configurar UltimateValidator para pular correção (já foi feita no parse)
+        const validationPromises = emailsList.map((email, index) => {
+            // Passar informação de correção junto para o validador saber
+            const emailInfo = emailsWithInfo[index];
+            return ultimateValidator.validateEmail(email).then(result => ({
+                ...result,
+                wasPreCorrected: emailInfo.wasCorrected,
+                originalEmailBeforeCorrection: emailInfo.originalEmail,
+                correctionAppliedDuringParse: emailInfo.correctionDetails
+            }));
+        });
+
         const validationResults = await Promise.all(validationPromises);
 
-        // Adicionar informação de duplicados aos resultados
-        const validationResultsWithDuplicateInfo = validationResults.map((result, index) => {
+        // Adicionar informação de duplicados e correções aos resultados
+        const validationResultsWithFullInfo = validationResults.map((result, index) => {
             const emailInfo = emailsWithInfo[index];
             return {
                 ...result,
                 isDuplicate: emailInfo.isDuplicate,
                 duplicateIndex: emailInfo.duplicateIndex,
                 duplicateCount: emailInfo.duplicateCount,
-                originalLine: emailInfo.originalLine
+                originalLine: emailInfo.originalLine,
+                // Informações de correção do parse
+                correctedDuringParse: emailInfo.wasCorrected,
+                originalBeforeParse: emailInfo.originalEmail
             };
         });
 
@@ -1094,10 +1210,10 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
             phone: userData.phone
         };
 
-        // Gerar e enviar relatório com informações de duplicados
-        console.log(`\n📊 Enviando relatório com ${validationResultsWithDuplicateInfo.length} emails para: ${userData.email}`);
+        // Gerar e enviar relatório com informações completas
+        console.log(`\n📊 Enviando relatório com ${validationResultsWithFullInfo.length} emails para: ${userData.email}`);
         const reportResult = await reportEmailService.generateAndSendReport(
-            validationResultsWithDuplicateInfo, // Passar resultados com info de duplicados
+            validationResultsWithFullInfo,
             userData.email,
             userInfo
         );
@@ -1122,10 +1238,22 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
                 total: emailsList.length,
                 unique: parseResult.stats.uniqueEmails,
                 duplicates: parseResult.stats.duplicatesCount,
+                corrected: parseResult.stats.correctedCount,          // NOVO
+                correctionRate: parseResult.stats.correctionRate,    // NOVO
                 valid: validCount,
                 invalid: emailsList.length - validCount,
                 averageScore: Math.round(avgScore),
                 invalidFormat: parseResult.stats.invalidFormatCount
+            },
+            corrections: {                                           // NOVO - detalhes das correções
+                total: parseResult.stats.correctedCount,
+                rate: parseResult.stats.correctionRate,
+                samples: parseResult.correctedEmails.slice(0, 5).map(c => ({
+                    original: c.original,
+                    corrected: c.corrected,
+                    type: c.correction.type,
+                    line: c.line
+                }))
             },
             quota: quotaInfo,
             reportSent: true,
@@ -1139,7 +1267,8 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
                 totalLinesProcessed: parseResult.stats.processedLines,
                 totalEmails: parseResult.stats.totalEmails,
                 uniqueEmails: parseResult.stats.uniqueEmails,
-                duplicatesInfo: parseResult.duplicatesList.slice(0, 5) // Mostra até 5 emails duplicados
+                correctedEmails: parseResult.stats.correctedCount,    // NOVO
+                duplicatesInfo: parseResult.duplicatesList.slice(0, 5)
             }
         });
     } catch (error) {

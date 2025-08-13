@@ -20,12 +20,12 @@ class TLDValidator {
         try {
             const dataPath = path.join(__dirname, '../../../data/lists/tlds.json');
             const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-            
+
             this.validTLDs = new Set(data.valid);
             this.blockedTLDs = new Set(data.blocked);
             this.suspiciousTLDs = new Set(data.suspicious);
             this.premiumTLDs = new Set(data.premium);
-            
+
             console.log(`✅ TLD Validator: ${this.validTLDs.size} TLDs válidos carregados`);
         } catch (error) {
             console.log('⚠️ Usando lista de TLDs padrão (arquivo não encontrado)');
@@ -38,8 +38,18 @@ class TLDValidator {
                 'shop', 'web', 'site', 'blog', 'news', 'info', 'biz', 'name',
                 'tv', 'cc', 'ws', 'mobi', 'asia', 'tel', 'travel', 'pro'
             ]);
-            this.blockedTLDs = new Set(['test', 'example', 'invalid', 'localhost', 'local', 'fake']);
-            this.suspiciousTLDs = new Set(['tk', 'ml', 'ga', 'cf', 'click', 'download']);
+            this.blockedTLDs = new Set([
+                'test', 'example', 'invalid', 'localhost', 'local', 'fake',
+                // NOVOS domínios bloqueados:
+                'testing', 'teste', 'demo', 'sample', 'temp', 'tmp',
+                'dev', 'development', 'staging', 'sandbox'
+            ]);
+            this.suspiciousTLDs = new Set([
+                'tk', 'ml', 'ga', 'cf', 'click', 'download',
+                // NOVOS TLDs suspeitos:
+                'loan', 'win', 'racing', 'cricket', 'science', 'party',
+                'review', 'faith', 'accountant', 'bid', 'trade'
+            ]);
             this.premiumTLDs = new Set(['com', 'org', 'net', 'edu', 'gov', 'com.br', 'org.br']);
         }
     }
@@ -47,27 +57,27 @@ class TLDValidator {
     extractTLD(domain) {
         // Extração simples de TLD sem PSL
         const parts = domain.toLowerCase().split('.');
-        
+
         // Verificar TLDs de dois níveis comuns (.com.br, .co.uk, etc)
         const twoLevelTLDs = ['com.br', 'org.br', 'gov.br', 'edu.br', 'net.br',
                               'co.uk', 'org.uk', 'gov.uk', 'ac.uk', 'edu.uk',
                               'com.au', 'org.au', 'gov.au', 'edu.au',
                               'com.mx', 'org.mx', 'gob.mx', 'edu.mx'];
-        
+
         if (parts.length >= 2) {
             const lastTwo = parts.slice(-2).join('.');
             if (twoLevelTLDs.includes(lastTwo)) {
                 return lastTwo;
             }
         }
-        
+
         // Retornar apenas o último elemento como TLD
         return parts[parts.length - 1];
     }
 
     validateTLD(domain) {
         this.stats.totalChecked++;
-        
+
         const result = {
             valid: false,
             tld: null,
@@ -78,11 +88,11 @@ class TLDValidator {
             isPremium: false,
             details: {}
         };
-        
+
         // Extrair TLD de forma simples
         const tld = this.extractTLD(domain);
         result.tld = tld;
-        
+
         // Verificar se está bloqueado
         if (this.blockedTLDs.has(tld)) {
             this.stats.blocked++;
@@ -92,7 +102,7 @@ class TLDValidator {
             result.details.reason = 'TLD is blocked for testing/internal use';
             return result;
         }
-        
+
         // Verificar se existe na lista válida
         if (!this.validTLDs.has(tld)) {
             // Se não estiver na lista, mas não for obviamente inválido, dar uma chance
@@ -110,7 +120,7 @@ class TLDValidator {
         } else {
             result.valid = true;
         }
-        
+
         // Verificar se é suspeito
         if (this.suspiciousTLDs.has(tld)) {
             this.stats.suspicious++;
@@ -132,21 +142,21 @@ class TLDValidator {
             result.type = 'generic';
             result.score = 5;
         }
-        
+
         // Adicionar metadados
         result.details.registryInfo = {
             isCountryCode: tld && tld.length === 2,
             isGeneric: tld && tld.length > 2,
             isSpecialUse: this.blockedTLDs.has(tld)
         };
-        
+
         return result;
     }
 
     getStatistics() {
         return {
             ...this.stats,
-            blockedRate: this.stats.totalChecked > 0 
+            blockedRate: this.stats.totalChecked > 0
                 ? ((this.stats.blocked / this.stats.totalChecked) * 100).toFixed(2) + '%'
                 : '0%',
             suspiciousRate: this.stats.totalChecked > 0
