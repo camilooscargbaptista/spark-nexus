@@ -21,6 +21,10 @@ const EmailService = require('./services/emailService');
 const SMSService = require('./services/smsService');
 const Validators = require('./services/validators');
 const ReportService = require('./services/reportServiceSimple');
+const billingRoutes = require('./services/routes/billing.routes');
+const stripeRoutes = require('./services/routes/stripe.routes');
+const AsyncValidationService = require('./services/asyncValidationService');
+
 
 // Validador Aprimorado
 const ReportEmailService = require('./services/reports/ReportEmailService');
@@ -51,6 +55,21 @@ const db = new DatabaseService();
 const emailService = new EmailService();
 const smsService = new SMSService();
 const reportService = new ReportService();
+
+// Serviço de validação assíncrona
+let asyncValidationService;
+
+// Inicializar após UltimateValidator
+setTimeout(() => {
+    asyncValidationService = new AsyncValidationService({
+        db,
+        emailService,
+        ultimateValidator,
+        reportEmailService,
+        maxConcurrentJobs: 3
+    });
+    console.log('[ASYNC] Serviço de validação assíncrona inicializado');
+}, 1000);
 
 // ================================================
 // MIDDLEWARE
@@ -88,6 +107,9 @@ const authLimiter = rateLimit({
 app.use('/api/', limiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/billing', billingRoutes);
+app.use('/api/stripe', stripeRoutes);
+
 
 // Upload
 const upload = multer({
@@ -120,6 +142,31 @@ const authenticateToken = async (req, res, next) => {
     } catch (err) {
         console.log('erro token: ', err);
         return res.status(403).json({ error: 'Token inválido' });
+    }
+};
+
+// ================================================
+// MÉTODO AUXILIAR PARA BUSCAR ORGANIZATION_ID DO USUÁRIO
+// ================================================
+const getUserOrganizationId = async (userId) => {
+    try {
+        const result = await db.pool.query(
+            `SELECT organization_id
+             FROM tenant.organization_members
+             WHERE user_id = $1
+             LIMIT 1`,
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            console.log(`⚠️ Usuário ${userId} não tem organização associada`);
+            return null;
+        }
+
+        return result.rows[0].organization_id;
+    } catch (error) {
+        console.error('Erro ao buscar organization_id:', error);
+        return null;
     }
 };
 
@@ -547,11 +594,32 @@ app.get('/register', (req, res) => {
 });
 
 app.get('/upload', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'upload.html'));
+    res.sendFile(path.join(__dirname, 'public', 'upload-async.html'));
+});
+
+app.get('/validation-history', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'validation-history.html'));
+});
+
+app.get('/checkout', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'checkout-dynamic.html'));
 });
 
 app.get('/verify-email', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'verify-email.html'));
+});
+
+
+app.get('/payment/success', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/payment', 'success.html'));
+});
+
+app.get('/payment/cancel', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/payment', 'cancel.html'));
+});
+
+app.get('/profile', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'profile.html'));
 });
 
 // ================================================
@@ -966,26 +1034,55 @@ app.get('/api/auth/verify', authenticateToken, (req, res) => {
 // Endpoint de Quota
 app.get('/api/user/quota', authenticateToken, getQuotaStats);
 
-// Endpoint de quota simplificado
+// Endpoint de quota simplificado - atualizado para novo sistema de créditos
 app.get('/api/user/quota/summary', authenticateToken, async (req, res) => {
     try {
-        const QuotaService = require('./services/QuotaService');
-        const quotaService = new QuotaService(db.pool, db.redis);
-        const organization = await quotaService.getUserOrganization(req.user.id);
-
-        if (!organization) {
+        const organizationId = await getUserOrganizationId(req.user.id);
+        if (!organizationId) {
             return res.status(404).json({ error: 'Organização não encontrada' });
         }
 
-        const quota = await quotaService.checkQuota(organization.id);
+        // Buscar dados da organização com nova estrutura de créditos
+        const orgResult = await db.pool.query(`
+            SELECT
+                id,
+                name,
+                plan,
+                balance_credits,
+                monthly_credits,
+                total_validations_ever,
+                -- Campos antigos para compatibilidade
+                max_validations,
+                validations_used
+            FROM tenant.organizations
+            WHERE id = $1
+        `, [organizationId]);
+
+        if (orgResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
+        }
+
+        const organization = orgResult.rows[0];
+
+        // Usar novo sistema de créditos se disponível, senão usar sistema antigo
+        const balanceCredits = organization.balance_credits !== null ? organization.balance_credits :
+            Math.max(0, (organization.max_validations || 100) - (organization.validations_used || 0));
+
+        const totalValidations = organization.total_validations_ever !== null ? organization.total_validations_ever :
+            (organization.validations_used || 0);
 
         res.json({
             organization: organization.name,
             plan: organization.plan,
-            used: quota.used,
-            limit: quota.limit,
-            remaining: quota.remaining,
-            percentage: Math.round((quota.used / quota.limit) * 100)
+            // Novo sistema
+            balance_credits: balanceCredits,
+            monthly_credits: organization.monthly_credits || 0,
+            total_validations_ever: totalValidations,
+            // Compatibilidade com sistema antigo
+            used: organization.validations_used || 0,
+            limit: organization.max_validations || 100,
+            remaining: balanceCredits,
+            percentage: organization.max_validations > 0 ? Math.round(((organization.validations_used || 0) / organization.max_validations) * 100) : 0
         });
     } catch (error) {
         console.error('Erro ao buscar quota:', error);
@@ -1035,9 +1132,35 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
     }
 });
 
+// Estatísticas históricas do usuário
+app.get('/api/user/stats', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Por enquanto, vamos usar dados mock até implementar as tabelas de histórico
+        // TODO: Implementar consulta real ao banco de dados de validações históricas
+        const userStats = {
+            totalValidations: Math.floor(Math.random() * 5000) + 1000, // Total histórico
+            totalEmailsProcessed: Math.floor(Math.random() * 50000) + 10000,
+            averageSuccessRate: 85 + Math.floor(Math.random() * 10), // 85-95%
+            monthsActive: Math.ceil((Date.now() - new Date('2024-01-01')) / (1000 * 60 * 60 * 24 * 30)),
+            firstValidation: '2024-01-15',
+            lastValidation: new Date().toISOString().split('T')[0]
+        };
+
+        res.json({
+            success: true,
+            stats: userStats
+        });
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas do usuário:', error);
+        res.status(500).json({ error: 'Erro ao buscar estatísticas históricas' });
+    }
+});
+
 
 // ================================================
-// UPLOAD DE CSV PARA VALIDAÇÃO - COM CORREÇÃO DE TYPOS
+// UPLOAD DE CSV PARA VALIDAÇÃO - PROCESSAMENTO ASSÍNCRONO
 // ================================================
 app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
     try {
@@ -1052,7 +1175,7 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
             return res.status(404).json({ error: 'Dados do usuário não encontrados' });
         }
 
-        console.log('Dados do usuário recuperados:', userData);
+        console.log('📁 Processando arquivo para:', userData.fullName);
 
         // Processar arquivo CSV com a função que mantém duplicados E corrige typos
         const fs = require('fs').promises;
@@ -1083,194 +1206,114 @@ app.post('/api/upload', authenticateToken, upload.single('file'), async (req, re
         const emailsList = parseResult.emailsList; // Lista simples para validação (já corrigida)
         const emailsWithInfo = parseResult.emails; // Lista com informações de duplicados e correções
 
-        console.log(`\n📧 TOTAL: ${emailsList.length} emails para validação (incluindo duplicados)`);
+        console.log(`\n📧 TOTAL: ${emailsList.length} emails para validação assíncrona`);
         console.log(`📊 ${parseResult.stats.uniqueEmails} emails únicos`);
-        console.log(`🔄 ${parseResult.stats.duplicatesCount} duplicados mantidos para transparência`);
+        console.log(`🔄 ${parseResult.stats.duplicatesCount} duplicados mantidos`);
         console.log(`✏️ ${parseResult.stats.correctedCount} emails corrigidos automaticamente`);
 
         // ================================================
-        // VERIFICAR E CONSUMIR QUOTA
+        // VERIFICAR CRÉDITOS (NÃO CONSUMIR AINDA)
         // ================================================
-        let quotaInfo = null;
-        try {
-            const QuotaService = require('./services/QuotaService');
-            const quotaService = new QuotaService(db.pool, db.redis);
-
-            // Buscar organização do usuário
-            const organization = await quotaService.getUserOrganization(req.user.id);
-
-            if (organization) {
-                // Verificar se tem quota suficiente para TODOS os emails (incluindo duplicados)
-                const quotaCheck = await quotaService.checkQuota(organization.id, emailsList.length);
-
-                if (!quotaCheck.allowed) {
-                    return res.status(429).json({
-                        error: 'Limite de validações excedido',
-                        code: 'QUOTA_EXCEEDED',
-                        details: {
-                            message: quotaCheck.message,
-                            limit: quotaCheck.limit,
-                            used: quotaCheck.used,
-                            remaining: quotaCheck.remaining,
-                            requested: emailsList.length,
-                            plan: organization.plan
-                        },
-                        suggestions: [
-                            'Reduza a quantidade de emails no arquivo',
-                            'Aguarde até o próximo período de faturamento',
-                            'Faça upgrade do seu plano'
-                        ]
-                    });
-                }
-
-                console.log(`[QUOTA] Processando ${emailsList.length} emails para ${organization.name}`);
-                quotaInfo = {
-                    organization: organization.name,
-                    plan: organization.plan,
-                    limit: quotaCheck.limit,
-                    used: quotaCheck.used,
-                    remaining: quotaCheck.remaining
-                };
-            }
-        } catch (quotaError) {
-            console.error('[QUOTA] Erro ao verificar quota:', quotaError.message);
-            // Continuar sem quota se houver erro
+        const organizationId = await getUserOrganizationId(req.user.id);
+        if (!organizationId) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
         }
 
-        // Criar job de validação
-        const jobId = uuidv4();
+        // Verificar créditos disponíveis
+        const creditsResult = await db.pool.query(`
+            SELECT
+                name,
+                plan,
+                balance_credits,
+                monthly_credits,
+                total_validations_ever
+            FROM tenant.organizations
+            WHERE id = $1
+        `, [organizationId]);
 
-        // Processar TODOS os emails com validador aprimorado
-        // NOTA: Os emails já estão corrigidos, então o UltimateValidator não precisa corrigir novamente
-        console.log(`\n🔍 Iniciando validação de ${emailsList.length} emails...`);
-
-        // Configurar UltimateValidator para pular correção (já foi feita no parse)
-        const validationPromises = emailsList.map((email, index) => {
-            // Passar informação de correção junto para o validador saber
-            const emailInfo = emailsWithInfo[index];
-            return ultimateValidator.validateEmail(email).then(result => ({
-                ...result,
-                wasPreCorrected: emailInfo.wasCorrected,
-                originalEmailBeforeCorrection: emailInfo.originalEmail,
-                correctionAppliedDuringParse: emailInfo.correctionDetails
-            }));
-        });
-
-        const validationResults = await Promise.all(validationPromises);
-
-        // Adicionar informação de duplicados e correções aos resultados
-        const validationResultsWithFullInfo = validationResults.map((result, index) => {
-            const emailInfo = emailsWithInfo[index];
-            return {
-                ...result,
-                isDuplicate: emailInfo.isDuplicate,
-                duplicateIndex: emailInfo.duplicateIndex,
-                duplicateCount: emailInfo.duplicateCount,
-                originalLine: emailInfo.originalLine,
-                // Informações de correção do parse
-                correctedDuringParse: emailInfo.wasCorrected,
-                originalBeforeParse: emailInfo.originalEmail
-            };
-        });
-
-        // ================================================
-        // INCREMENTAR QUOTA APÓS SUCESSO
-        // ================================================
-        if (quotaInfo) {
-            try {
-                const QuotaService = require('./services/QuotaService');
-                const quotaService = new QuotaService(db.pool, db.redis);
-                const organization = await quotaService.getUserOrganization(req.user.id);
-
-                if (organization) {
-                    const incrementResult = await quotaService.incrementUsage(organization.id, emailsList.length);
-                    console.log(`[QUOTA] Incrementado ${emailsList.length} validações. Restam: ${incrementResult.remaining}`);
-
-                    // Atualizar quotaInfo
-                    quotaInfo.remaining = incrementResult.remaining;
-                    quotaInfo.used = organization.validations_used + emailsList.length;
-
-                    // Adicionar headers de quota na resposta
-                    res.set({
-                        'X-RateLimit-Limit': organization.max_validations,
-                        'X-RateLimit-Remaining': incrementResult.remaining,
-                        'X-RateLimit-Used': organization.validations_used + emailsList.length
-                    });
-                }
-            } catch (quotaError) {
-                console.error('[QUOTA] Erro ao incrementar uso:', quotaError.message);
-            }
+        if (creditsResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
         }
 
-        // Preparar informações do usuário para o relatório
-        const userInfo = {
-            name: userData.fullName,
-            email: userData.email,
-            company: userData.company,
-            phone: userData.phone
+        const organization = creditsResult.rows[0];
+        const availableCredits = organization.balance_credits || 0;
+        const requiredCredits = emailsList.length;
+
+        console.log(`[CRÉDITOS] Verificando: ${requiredCredits} necessários, ${availableCredits} disponíveis`);
+
+        if (availableCredits < requiredCredits) {
+            return res.status(429).json({
+                error: 'Créditos insuficientes',
+                code: 'QUOTA_EXCEEDED',
+                details: {
+                    message: `Você precisa de ${requiredCredits} créditos, mas tem apenas ${availableCredits} disponíveis`,
+                    available: availableCredits,
+                    required: requiredCredits,
+                    deficit: requiredCredits - availableCredits,
+                    plan: organization.plan
+                },
+                suggestions: [
+                    'Compre mais créditos',
+                    'Reduza a quantidade de emails no arquivo',
+                    'Faça upgrade do seu plano'
+                ]
+            });
+        }
+
+        // ================================================
+        // CRIAR JOB ASSÍNCRONO
+        // ================================================
+        const jobData = {
+            organizationId,
+            userId: req.user.id,
+            emailsList,
+            emailsWithInfo,
+            parseResult,
+            userData,
+            fileName: req.file.originalname,
+            fileSize: req.file.size
         };
 
-        // Gerar e enviar relatório com informações completas
-        console.log(`\n📊 Enviando relatório com ${validationResultsWithFullInfo.length} emails para: ${userData.email}`);
-        const reportResult = await reportEmailService.generateAndSendReport(
-            validationResultsWithFullInfo,
-            userData.email,
-            userInfo
-        );
+        // Criar job assíncrono
+        const jobId = await asyncValidationService.createValidationJob(jobData);
 
-        console.log('✅ Relatório enviado com sucesso');
+        console.log(`🚀 Job assíncrono criado: ${jobId}`);
 
-        // Estatísticas
-        const validCount = validationResults.filter(r => r.valid).length;
-        const avgScore = validationResults.reduce((acc, r) => acc + r.score, 0) / validationResults.length;
-
-        // Resposta completa
+        // ================================================
+        // RESPOSTA IMEDIATA PARA O USUÁRIO
+        // ================================================
         res.json({
             success: true,
-            message: `${emailsList.length} emails validados com sucesso! O relatório será enviado por e-mail.`,
+            message: `📧 Seu arquivo está sendo processado! Você receberá um e-mail com o relatório em breve.`,
             jobId,
+            status: 'processing',
             user: {
                 name: userData.fullName,
                 email: userData.email,
                 company: userData.company
             },
-            stats: {
-                total: emailsList.length,
-                unique: parseResult.stats.uniqueEmails,
-                duplicates: parseResult.stats.duplicatesCount,
-                corrected: parseResult.stats.correctedCount,          // NOVO
-                correctionRate: parseResult.stats.correctionRate,    // NOVO
-                valid: validCount,
-                invalid: emailsList.length - validCount,
-                averageScore: Math.round(avgScore),
-                invalidFormat: parseResult.stats.invalidFormatCount
-            },
-            corrections: {                                           // NOVO - detalhes das correções
-                total: parseResult.stats.correctedCount,
-                rate: parseResult.stats.correctionRate,
-                samples: parseResult.correctedEmails.slice(0, 5).map(c => ({
-                    original: c.original,
-                    corrected: c.corrected,
-                    type: c.correction.type,
-                    line: c.line
-                }))
-            },
-            quota: quotaInfo,
-            reportSent: true,
-            reportDetails: {
-                sentTo: userData.email,
-                filename: reportResult.filename,
-                sentAt: new Date().toISOString()
-            },
-            parseDetails: {
-                totalLinesInFile: parseResult.stats.totalLines,
-                totalLinesProcessed: parseResult.stats.processedLines,
-                totalEmails: parseResult.stats.totalEmails,
+            preview: {
+                totalEmails: emailsList.length,
                 uniqueEmails: parseResult.stats.uniqueEmails,
-                correctedEmails: parseResult.stats.correctedCount,    // NOVO
-                duplicatesInfo: parseResult.duplicatesList.slice(0, 5)
+                duplicates: parseResult.stats.duplicatesCount,
+                corrected: parseResult.stats.correctedCount,
+                fileName: req.file.originalname,
+                fileSize: req.file.size
+            },
+            processing: {
+                estimatedTime: `${Math.ceil(emailsList.length / 100)} minutos`,
+                reportWillBeSentTo: userData.email,
+                statusCheckUrl: `/api/validation/status/${jobId}`
+            },
+            credits: {
+                organization: organization.name,
+                plan: organization.plan,
+                available: availableCredits,
+                willBeUsed: requiredCredits,
+                remainingAfter: availableCredits - requiredCredits
             }
         });
+
     } catch (error) {
         console.error('❌ Erro no upload:', error);
         res.status(500).json({ error: 'Erro ao processar arquivo: ' + error.message });
@@ -1537,6 +1580,156 @@ app.post('/api/validate/batch-with-report', authenticateToken, quotaForBatch, as
     }
 });
 
+// ================================================
+// VALIDAÇÃO EM LOTE VIA TEXTO (NOVO ENDPOINT)
+// ================================================
+app.post('/api/validate/batch-text', authenticateToken, [
+    body('emails').isArray().withMessage('Lista de emails deve ser um array'),
+    body('emails.*').isEmail().withMessage('Todos os itens devem ser emails válidos')
+], async (req, res) => {
+    try {
+        console.log('🔤 Iniciando validação em lote via texto...');
+
+        // Validar dados de entrada
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                error: 'Dados de entrada inválidos',
+                details: errors.array()
+            });
+        }
+
+        const { emails } = req.body;
+        const emailCount = emails.length;
+
+        console.log(`📧 Recebidos ${emailCount} emails para validação`);
+
+        if (emailCount === 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Lista de emails não pode estar vazia'
+            });
+        }
+
+        if (emailCount > 1000) {
+            return res.status(400).json({
+                success: false,
+                error: 'Máximo de 1000 emails por vez. Use o upload de arquivo para listas maiores.'
+            });
+        }
+
+        // Verificar créditos disponíveis
+        const organizationId = await getUserOrganizationId(req.user.id);
+        if (!organizationId) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
+        }
+
+        const creditsResult = await db.pool.query(`
+            SELECT
+                name,
+                plan,
+                balance_credits
+            FROM tenant.organizations
+            WHERE id = $1
+        `, [organizationId]);
+
+        if (creditsResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
+        }
+
+        const organization = creditsResult.rows[0];
+        const availableCredits = organization.balance_credits || 0;
+
+        console.log(`[CRÉDITOS] Verificando: ${emailCount} necessários, ${availableCredits} disponíveis`);
+
+        if (availableCredits < emailCount) {
+            return res.status(429).json({
+                success: false,
+                error: 'Créditos insuficientes',
+                code: 'QUOTA_EXCEEDED',
+                message: `Você precisa de ${emailCount} créditos, mas tem apenas ${availableCredits} disponíveis`,
+                details: {
+                    available: availableCredits,
+                    required: emailCount,
+                    deficit: emailCount - availableCredits
+                }
+            });
+        }
+
+        // Processar validação
+        console.log(`🔍 Validando ${emailCount} emails...`);
+
+        const validationPromises = emails.map(email =>
+            ultimateValidator.validateEmail(email.trim())
+        );
+
+        const results = await Promise.all(validationPromises);
+
+        // Consumir créditos
+        try {
+            const useCreditsResult = await db.pool.query(
+                `SELECT tenant.use_credits($1, $2, $3) as new_balance`,
+                [
+                    organizationId,
+                    emailCount,
+                    `Validação em lote de ${emailCount} emails via texto`
+                ]
+            );
+
+            const newBalance = useCreditsResult.rows[0].new_balance;
+            console.log(`[CRÉDITOS] Consumidos ${emailCount} créditos. Saldo atual: ${newBalance}`);
+
+            // Adicionar headers de créditos
+            res.set({
+                'X-Credits-Available': newBalance,
+                'X-Credits-Used': emailCount,
+                'X-Credits-Previous': availableCredits
+            });
+
+        } catch (creditsError) {
+            console.error('[CRÉDITOS] Erro ao consumir créditos:', creditsError.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Erro ao processar créditos'
+            });
+        }
+
+        // Estatísticas
+        const validCount = results.filter(r => r.valid).length;
+        const avgScore = results.reduce((acc, r) => acc + r.score, 0) / results.length;
+
+        console.log(`✅ Validação concluída: ${validCount}/${emailCount} válidos`);
+
+        res.json({
+            success: true,
+            message: `${emailCount} emails validados com sucesso!`,
+            results: results,
+            stats: {
+                total: emailCount,
+                valid: validCount,
+                invalid: emailCount - validCount,
+                validPercentage: Math.round((validCount / emailCount) * 100),
+                averageScore: Math.round(avgScore * 100)
+            },
+            credits: {
+                organization: organization.name,
+                plan: organization.plan,
+                creditsUsed: emailCount,
+                newBalance: availableCredits - emailCount
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Erro na validação em lote via texto:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro interno do servidor',
+            message: error.message
+        });
+    }
+});
+
 // Obter dados do usuário autenticado
 app.get('/api/user/profile', authenticateToken, async (req, res) => {
     try {
@@ -1553,6 +1746,775 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Erro ao buscar perfil:', error);
         res.status(500).json({ error: 'Erro ao buscar dados do usuário' });
+    }
+});
+
+// Obter dados da organização do usuário
+app.get('/api/user/organization', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const organizationId = await getUserOrganizationId(userId);
+
+        if (!organizationId) {
+            return res.status(404).json({
+                success: false,
+                error: 'Usuário não possui organização associada'
+            });
+        }
+
+        // Buscar dados completos da organização
+        const result = await db.pool.query(
+            `SELECT
+                id,
+                name,
+                slug,
+                email,
+                plan,
+                max_validations,
+                validations_used,
+                stripe_customer_id,
+                created_at
+            FROM tenant.organizations
+            WHERE id = $1`,
+            [organizationId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Organização não encontrada'
+            });
+        }
+
+        const organization = result.rows[0];
+
+        res.json({
+            success: true,
+            organization: {
+                id: organization.id,
+                name: organization.name,
+                slug: organization.slug,
+                email: organization.email,
+                plan: organization.plan,
+                maxValidations: organization.max_validations,
+                validationsUsed: organization.validations_used,
+                stripeCustomerId: organization.stripe_customer_id,
+                createdAt: organization.created_at
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao buscar dados da organização:', error);
+        res.status(500).json({ error: 'Erro ao buscar dados da organização' });
+    }
+});
+
+// ================================================
+// ENDPOINTS DE MONITORAMENTO DE JOBS ASSÍNCRONOS
+// ================================================
+
+// Verificar status de um job específico
+app.get('/api/validation/status/:jobId', authenticateToken, async (req, res) => {
+    // Headers para prevenir cache
+    res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    });
+
+    try {
+        const { jobId } = req.params;
+        const userId = req.user.id;
+
+        // Verificar se o job existe no serviço (se inicializado)
+        let job = null;
+        if (asyncValidationService) {
+            job = asyncValidationService.getJobStatus(jobId);
+            console.log(`[DEBUG] Job ${jobId} encontrado na memória: ${job ? 'SIM' : 'NÃO'}`);
+        } else {
+            console.log(`[DEBUG] AsyncValidationService não inicializado, buscando no banco`);
+        }
+
+        if (!job) {
+            // Verificar no histórico do banco de dados
+            const historyResult = await db.pool.query(
+                `SELECT
+                    vh.*,
+                    u.first_name,
+                    u.last_name,
+                    o.name as organization_name
+                FROM validation.validation_history vh
+                JOIN auth.users u ON vh.user_id = u.id
+                JOIN tenant.organizations o ON vh.organization_id = o.id
+                WHERE vh.batch_id = $1 AND vh.user_id = $2`,
+                [jobId, userId]
+            );
+
+            if (historyResult.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Job não encontrado'
+                });
+            }
+
+            const history = historyResult.rows[0];
+
+            return res.json({
+                success: true,
+                jobId: jobId,
+                status: history.status,
+                progress: history.status === 'completed' ? 100 : 0,
+                result: history.status === 'completed' ? {
+                    totalEmails: history.total_emails,
+                    validEmails: history.emails_valid,
+                    invalidEmails: history.emails_invalid,
+                    correctedEmails: history.emails_corrected,
+                    successRate: history.success_rate,
+                    qualityScore: history.quality_score,
+                    processingTime: history.processing_time_seconds,
+                    completedAt: history.completed_at
+                } : null,
+                error: history.error_message
+            });
+        }
+
+        // Verificar se o job pertence ao usuário
+        if (job.data.userId !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Acesso negado'
+            });
+        }
+
+        // Calcular progresso estimado
+        let progress = 0;
+        console.log(`[DEBUG] Job ${jobId} status na memória: ${job.status}`);
+
+        if (job.status === 'completed' || job.status === 'failed') {
+            progress = 100;
+            console.log(`[DEBUG] Job ${jobId} completed/failed - progress: 100%`);
+        } else if (job.status === 'processing') {
+            // Progresso estimado baseado no tempo decorrido
+            const elapsed = Date.now() - job.startedAt?.getTime();
+            const estimated = job.data.emailsList.length * 100; // ~100ms por email
+            progress = Math.min(90, Math.round((elapsed / estimated) * 100));
+            console.log(`[DEBUG] Job ${jobId} processing - elapsed: ${elapsed}ms, progress: ${progress}%`);
+        } else {
+            console.log(`[DEBUG] Job ${jobId} status desconhecido: ${job.status}`);
+        }
+
+        res.json({
+            success: true,
+            jobId: job.id,
+            status: job.status,
+            progress: progress,
+            createdAt: job.createdAt,
+            startedAt: job.startedAt,
+            completedAt: job.completedAt,
+            emailsToProcess: job.data.emailsList.length,
+            result: job.result || null,
+            error: job.error || null
+        });
+
+    } catch (error) {
+        console.error('Erro ao verificar status do job:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao verificar status do job'
+        });
+    }
+});
+
+// Listar jobs do usuário
+app.get('/api/validation/jobs', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const organizationId = await getUserOrganizationId(userId);
+
+        if (!organizationId) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
+        }
+
+        // Buscar jobs do histórico (concluídos)
+        const historyResult = await db.pool.query(
+            `SELECT
+                vh.batch_id as job_id,
+                vh.status,
+                vh.validation_type,
+                vh.total_emails,
+                vh.emails_valid,
+                vh.emails_invalid,
+                vh.success_rate,
+                vh.quality_score,
+                vh.file_name,
+                vh.started_at,
+                vh.completed_at,
+                vh.processing_time_seconds,
+                vh.credits_consumed
+            FROM validation.validation_history vh
+            WHERE vh.user_id = $1
+            ORDER BY vh.created_at DESC
+            LIMIT 20`,
+            [userId]
+        );
+
+        // Buscar jobs ativos na memória
+        const activeJobs = asyncValidationService.getAllJobs()
+            .filter(job => job.data.userId === userId)
+            .map(job => ({
+                job_id: job.id,
+                status: job.status,
+                validation_type: 'file_upload',
+                total_emails: job.data.emailsList.length,
+                emails_valid: null,
+                emails_invalid: null,
+                success_rate: null,
+                quality_score: null,
+                file_name: job.data.fileName,
+                started_at: job.startedAt,
+                completed_at: job.completedAt,
+                processing_time_seconds: null,
+                credits_consumed: job.status === 'completed' ? job.data.emailsList.length : null
+            }));
+
+        // Combinar resultados
+        const allJobs = [...activeJobs, ...historyResult.rows]
+            .sort((a, b) => new Date(b.started_at || b.created_at) - new Date(a.started_at || a.created_at));
+
+        res.json({
+            success: true,
+            jobs: allJobs
+        });
+
+    } catch (error) {
+        console.error('Erro ao listar jobs:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao listar jobs'
+        });
+    }
+});
+
+// Cancelar job (se ainda estiver na fila)
+app.delete('/api/validation/jobs/:jobId', authenticateToken, async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const userId = req.user.id;
+
+        const job = asyncValidationService.getJobStatus(jobId);
+
+        if (!job) {
+            return res.status(404).json({
+                success: false,
+                error: 'Job não encontrado'
+            });
+        }
+
+        if (job.data.userId !== userId) {
+            return res.status(403).json({
+                success: false,
+                error: 'Acesso negado'
+            });
+        }
+
+        if (job.status === 'processing') {
+            return res.status(400).json({
+                success: false,
+                error: 'Não é possível cancelar job em processamento'
+            });
+        }
+
+        const cancelled = asyncValidationService.cancelJob(jobId);
+
+        if (cancelled) {
+            res.json({
+                success: true,
+                message: 'Job cancelado com sucesso'
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                error: 'Não foi possível cancelar o job'
+            });
+        }
+
+    } catch (error) {
+        console.error('Erro ao cancelar job:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao cancelar job'
+        });
+    }
+});
+
+// ================================================
+// ENDPOINTS DE HISTÓRICO DE VALIDAÇÕES
+// ================================================
+
+// Listar histórico de validações da organização
+app.get('/api/validation/history', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const organizationId = await getUserOrganizationId(userId);
+
+        if (!organizationId) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
+        }
+
+        const { page = 1, limit = 20, status, startDate, endDate } = req.query;
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+
+        let whereClause = 'WHERE vh.organization_id = $1';
+        let params = [organizationId];
+        let paramCount = 1;
+
+        if (status) {
+            paramCount++;
+            whereClause += ` AND vh.status = $${paramCount}`;
+            params.push(status);
+        }
+
+        if (startDate) {
+            paramCount++;
+            whereClause += ` AND vh.created_at >= $${paramCount}`;
+            params.push(startDate);
+        }
+
+        if (endDate) {
+            paramCount++;
+            whereClause += ` AND vh.created_at <= $${paramCount}`;
+            params.push(endDate);
+        }
+
+        // Buscar registros
+        const historyQuery = `
+            SELECT
+                vh.id,
+                vh.batch_id,
+                vh.user_id,
+                vh.validation_type,
+                vh.status,
+                vh.total_emails,
+                vh.emails_processed,
+                vh.emails_valid,
+                vh.emails_invalid,
+                vh.emails_corrected,
+                vh.emails_duplicated,
+                vh.success_rate,
+                vh.quality_score,
+                vh.average_score,
+                vh.credits_consumed,
+                vh.file_name,
+                vh.file_size,
+                vh.processing_time_seconds,
+                vh.started_at,
+                vh.completed_at,
+                vh.created_at,
+                u.first_name,
+                u.last_name,
+                u.email as user_email
+            FROM validation.validation_history vh
+            JOIN auth.users u ON vh.user_id = u.id
+            ${whereClause}
+            ORDER BY vh.created_at DESC
+            LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+        `;
+
+        params.push(parseInt(limit), offset);
+
+        const historyResult = await db.pool.query(historyQuery, params);
+
+        // Contar total de registros
+        const countQuery = `
+            SELECT COUNT(*) as total
+            FROM validation.validation_history vh
+            ${whereClause}
+        `;
+
+        const countResult = await db.pool.query(countQuery, params.slice(0, paramCount));
+        const totalRecords = parseInt(countResult.rows[0].total);
+
+        res.json({
+            success: true,
+            data: historyResult.rows.map(row => ({
+                id: row.id,
+                jobId: row.batch_id,
+                user: {
+                    id: row.user_id,
+                    name: `${row.first_name} ${row.last_name}`,
+                    email: row.user_email
+                },
+                type: row.validation_type,
+                status: row.status,
+                stats: {
+                    totalEmails: row.total_emails,
+                    processed: row.emails_processed,
+                    valid: row.emails_valid,
+                    invalid: row.emails_invalid,
+                    corrected: row.emails_corrected,
+                    duplicated: row.emails_duplicated,
+                    successRate: row.success_rate,
+                    qualityScore: row.quality_score,
+                    averageScore: row.average_score
+                },
+                file: {
+                    name: row.file_name,
+                    size: row.file_size
+                },
+                credits: row.credits_consumed,
+                timing: {
+                    processingSeconds: row.processing_time_seconds,
+                    startedAt: row.started_at,
+                    completedAt: row.completed_at,
+                    createdAt: row.created_at
+                }
+            })),
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total: totalRecords,
+                pages: Math.ceil(totalRecords / parseInt(limit))
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar histórico:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar histórico de validações'
+        });
+    }
+});
+
+// Estatísticas resumidas do histórico
+app.get('/api/validation/history/stats', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const organizationId = await getUserOrganizationId(userId);
+
+        if (!organizationId) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
+        }
+
+        // Estatísticas gerais
+        const generalStats = await db.pool.query(`
+            SELECT
+                COUNT(*) as total_validations,
+                SUM(total_emails) as total_emails_processed,
+                SUM(emails_valid) as total_valid_emails,
+                SUM(emails_invalid) as total_invalid_emails,
+                SUM(emails_corrected) as total_corrected_emails,
+                SUM(credits_consumed) as total_credits_used,
+                ROUND(AVG(success_rate), 2) as avg_success_rate,
+                ROUND(AVG(quality_score), 2) as avg_quality_score,
+                MIN(created_at) as first_validation,
+                MAX(created_at) as last_validation
+            FROM validation.validation_history
+            WHERE organization_id = $1 AND status = 'completed'
+        `, [organizationId]);
+
+        // Estatísticas dos últimos 30 dias
+        const recentStats = await db.pool.query(`
+            SELECT
+                COUNT(*) as recent_validations,
+                SUM(total_emails) as recent_emails,
+                SUM(credits_consumed) as recent_credits
+            FROM validation.validation_history
+            WHERE organization_id = $1
+                AND status = 'completed'
+                AND created_at >= CURRENT_DATE - INTERVAL '30 days'
+        `, [organizationId]);
+
+        // Estatísticas por usuário
+        const userStats = await db.pool.query(`
+            SELECT
+                u.first_name,
+                u.last_name,
+                u.email,
+                COUNT(*) as validations_count,
+                SUM(vh.total_emails) as emails_processed,
+                SUM(vh.credits_consumed) as credits_used,
+                ROUND(AVG(vh.success_rate), 2) as avg_success_rate
+            FROM validation.validation_history vh
+            JOIN auth.users u ON vh.user_id = u.id
+            WHERE vh.organization_id = $1 AND vh.status = 'completed'
+            GROUP BY u.id, u.first_name, u.last_name, u.email
+            ORDER BY validations_count DESC
+            LIMIT 10
+        `, [organizationId]);
+
+        const general = generalStats.rows[0];
+        const recent = recentStats.rows[0];
+
+        res.json({
+            success: true,
+            stats: {
+                overall: {
+                    totalValidations: parseInt(general.total_validations || 0),
+                    totalEmailsProcessed: parseInt(general.total_emails_processed || 0),
+                    totalValidEmails: parseInt(general.total_valid_emails || 0),
+                    totalInvalidEmails: parseInt(general.total_invalid_emails || 0),
+                    totalCorrectedEmails: parseInt(general.total_corrected_emails || 0),
+                    totalCreditsUsed: parseInt(general.total_credits_used || 0),
+                    averageSuccessRate: parseFloat(general.avg_success_rate || 0),
+                    averageQualityScore: parseFloat(general.avg_quality_score || 0),
+                    firstValidation: general.first_validation,
+                    lastValidation: general.last_validation
+                },
+                recent30Days: {
+                    validations: parseInt(recent.recent_validations || 0),
+                    emails: parseInt(recent.recent_emails || 0),
+                    credits: parseInt(recent.recent_credits || 0)
+                },
+                byUser: userStats.rows.map(user => ({
+                    name: `${user.first_name} ${user.last_name}`,
+                    email: user.email,
+                    validations: parseInt(user.validations_count),
+                    emailsProcessed: parseInt(user.emails_processed),
+                    creditsUsed: parseInt(user.credits_used),
+                    averageSuccessRate: parseFloat(user.avg_success_rate || 0)
+                }))
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar estatísticas do histórico'
+        });
+    }
+});
+
+// Estatísticas diárias para gráficos
+app.get('/api/validation/history/daily', authenticateToken, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const organizationId = await getUserOrganizationId(userId);
+
+        if (!organizationId) {
+            return res.status(404).json({ error: 'Organização não encontrada' });
+        }
+
+        const { days = 30 } = req.query;
+
+        const dailyStats = await db.pool.query(`
+            SELECT * FROM validation.daily_validation_stats
+            WHERE organization_id = $1
+                AND validation_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+            ORDER BY validation_date DESC
+        `, [organizationId]);
+
+        res.json({
+            success: true,
+            data: dailyStats.rows.map(row => ({
+                date: row.validation_date,
+                validations: parseInt(row.validations_count),
+                totalEmails: parseInt(row.total_emails),
+                validEmails: parseInt(row.valid_emails),
+                successPercentage: parseFloat(row.success_percentage),
+                averageQuality: parseFloat(row.avg_quality || 0),
+                creditsUsed: parseInt(row.credits_used)
+            }))
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas diárias:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar estatísticas diárias'
+        });
+    }
+});
+
+// Stripe Public Key
+app.get('/api/stripe/public-key', (req, res) => {
+    res.json({
+        publicKey: process.env.STRIPE_PUBLISHABLE_KEY || 'pk_test_51RwQCiDDs93u86g8nLmxFiOtlX9ng32QJu4johWjyI1WiPYMwoK1R14gNY2S9eZfoY6T6NZTa8jl3VVTTLx7ELQJ00xElxaNWp'
+    });
+});
+
+// Executar migração do histórico de validações
+app.post('/api/admin/migrate-validation-history', authenticateToken, async (req, res) => {
+    try {
+        // Verificar se o usuário é admin (implementar verificação adequada)
+        const fs = require('fs').promises;
+        const migrationSQL = await fs.readFile(
+            path.join(__dirname, 'services/migrations/013_create_validation_history.sql'),
+            'utf-8'
+        );
+
+        await db.pool.query(migrationSQL);
+
+        res.json({
+            success: true,
+            message: 'Migração do histórico de validações executada com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro na migração:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao executar migração'
+        });
+    }
+});
+
+// ================================================
+// ENDPOINTS DE PLANOS PARA CHECKOUT
+// ================================================
+
+// Buscar todos os planos ativos
+app.get('/api/billing/plans', async (req, res) => {
+    try {
+        const { type, period } = req.query;
+
+        let query = `
+            SELECT
+                id,
+                plan_key,
+                name,
+                type,
+                period,
+                emails_limit,
+                price,
+                original_price,
+                price_per_month,
+                price_per_email,
+                discount_percentage,
+                savings_amount,
+                features,
+                benefits,
+                is_popular,
+                display_order,
+                metadata
+            FROM billing.plans
+            WHERE is_active = true
+        `;
+
+        const params = [];
+        let paramCount = 0;
+
+        if (type) {
+            paramCount++;
+            query += ` AND type = $${paramCount}`;
+            params.push(type);
+        }
+
+        if (period) {
+            paramCount++;
+            query += ` AND period = $${paramCount}`;
+            params.push(period);
+        }
+
+        query += ' ORDER BY display_order ASC, price ASC';
+
+        const result = await db.pool.query(query, params);
+
+        // Formatar dados para o frontend
+        const plans = result.rows.map(plan => ({
+            id: plan.id,
+            planKey: plan.plan_key,
+            name: plan.name,
+            type: plan.type,
+            period: plan.period,
+            emailsLimit: plan.emails_limit,
+            price: parseFloat(plan.price),
+            originalPrice: plan.original_price ? parseFloat(plan.original_price) : null,
+            pricePerMonth: plan.price_per_month ? parseFloat(plan.price_per_month) : null,
+            pricePerEmail: plan.price_per_email ? parseFloat(plan.price_per_email) : null,
+            discountPercentage: plan.discount_percentage || 0,
+            savingsAmount: plan.savings_amount ? parseFloat(plan.savings_amount) : null,
+            features: plan.features || [],
+            benefits: plan.benefits || [],
+            isPopular: plan.is_popular || false,
+            displayOrder: plan.display_order || 0,
+            metadata: plan.metadata || {}
+        }));
+
+        res.json({
+            success: true,
+            plans: plans
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar planos:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar planos disponíveis'
+        });
+    }
+});
+
+// Buscar plano específico por ID ou chave
+app.get('/api/billing/plans/:identifier', async (req, res) => {
+    try {
+        const { identifier } = req.params;
+
+        // Tentar buscar por ID (número) ou por plan_key (string)
+        const isNumeric = /^\d+$/.test(identifier);
+        const query = `
+            SELECT
+                id,
+                plan_key,
+                name,
+                type,
+                period,
+                emails_limit,
+                price,
+                original_price,
+                price_per_month,
+                price_per_email,
+                discount_percentage,
+                savings_amount,
+                features,
+                benefits,
+                is_popular,
+                display_order,
+                metadata
+            FROM billing.plans
+            WHERE is_active = true AND ${isNumeric ? 'id = $1' : 'plan_key = $1'}
+        `;
+
+        const result = await db.pool.query(query, [identifier]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Plano não encontrado'
+            });
+        }
+
+        const plan = result.rows[0];
+
+        res.json({
+            success: true,
+            plan: {
+                id: plan.id,
+                planKey: plan.plan_key,
+                name: plan.name,
+                type: plan.type,
+                period: plan.period,
+                emailsLimit: plan.emails_limit,
+                price: parseFloat(plan.price),
+                originalPrice: plan.original_price ? parseFloat(plan.original_price) : null,
+                pricePerMonth: plan.price_per_month ? parseFloat(plan.price_per_month) : null,
+                pricePerEmail: plan.price_per_email ? parseFloat(plan.price_per_email) : null,
+                discountPercentage: plan.discount_percentage || 0,
+                savingsAmount: plan.savings_amount ? parseFloat(plan.savings_amount) : null,
+                features: plan.features || [],
+                benefits: plan.benefits || [],
+                isPopular: plan.is_popular || false,
+                displayOrder: plan.display_order || 0,
+                metadata: plan.metadata || {}
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar plano:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar detalhes do plano'
+        });
     }
 });
 
@@ -1633,6 +2595,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     - POST /api/validate/advanced
     - POST /api/validate/batch
     - POST /api/validate/batch-with-report
+    - POST /api/validate/batch-text
     - GET  /api/validator/stats
     - POST /api/validator/cache/clear
     - GET  /api/reports/download/:filename
@@ -1640,6 +2603,22 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     - GET  /api/user/profile
     - GET  /api/user/quota
     - GET  /api/user/quota/summary
+    - GET  /api/user/stats
+    - GET  /api/user/organization
+    - GET  /api/stripe/public-key
+
+    JOB MONITORING:
+    - GET  /api/validation/status/:jobId
+    - GET  /api/validation/jobs
+    - DELETE /api/validation/jobs/:jobId
+
+    VALIDATION HISTORY:
+    - GET  /api/validation/history
+    - GET  /api/validation/history/stats
+    - GET  /api/validation/history/daily
+
+    ADMIN:
+    - POST /api/admin/migrate-validation-history
 
     HEALTH:
     - GET  /api/health

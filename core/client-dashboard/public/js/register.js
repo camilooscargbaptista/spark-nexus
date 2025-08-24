@@ -265,7 +265,7 @@ async function verifyEmail() {
     const code = Array.from(inputs).map(i => i.value).join('');
 
     if (code.length !== 6) {
-        alert('Digite o código completo');
+        SparkModal.warning('Digite o código completo', 'Código incompleto');
         return;
     }
 
@@ -284,10 +284,10 @@ async function verifyEmail() {
         if (response.ok) {
             showStep(3);
         } else {
-            alert(result.error || 'Código inválido');
+            SparkModal.error(result.error || 'Código inválido', 'Erro na verificação');
         }
     } catch (error) {
-        alert('Erro ao verificar email');
+        SparkModal.error('Erro ao verificar email', 'Erro');
     }
 }
 
@@ -297,7 +297,7 @@ async function verifyPhone() {
     const code = Array.from(inputs).map(i => i.value).join('');
 
     if (code.length !== 6) {
-        alert('Digite o código completo');
+        SparkModal.warning('Digite o código completo', 'Código incompleto');
         return;
     }
 
@@ -314,15 +314,15 @@ async function verifyPhone() {
         const result = await response.json();
 
         if (response.ok) {
-            alert('✅ Cadastro completo! Redirecionando para login...');
+            SparkModal.success('Cadastro completo! Redirecionando para login...', '✅ Sucesso');
             setTimeout(() => {
                 window.location.href = '/login';
             }, 2000);
         } else {
-            alert(result.error || 'Código inválido');
+            SparkModal.error(result.error || 'Código inválido', 'Erro na verificação');
         }
     } catch (error) {
-        alert('Erro ao verificar telefone');
+        SparkModal.error('Erro ao verificar telefone', 'Erro');
     }
 }
 
@@ -336,10 +336,10 @@ async function resendEmailCode() {
         });
 
         if (response.ok) {
-            alert('Código reenviado para seu email');
+            SparkModal.success('Código reenviado para seu email', 'Código enviado');
         }
     } catch (error) {
-        alert('Erro ao reenviar código');
+        SparkModal.error('Erro ao reenviar código', 'Erro');
     }
 }
 
@@ -357,9 +357,9 @@ async function resendPhoneCode(method) {
         });
 
         if (response.ok) {
-            alert(`Código reenviado via ${method.toUpperCase()}`);
+            SparkModal.success(`Código reenviado via ${method.toUpperCase()}`, 'Código enviado');
         }
     } catch (error) {
-        alert('Erro ao reenviar código');
+        SparkModal.error('Erro ao reenviar código', 'Erro');
     }
 }

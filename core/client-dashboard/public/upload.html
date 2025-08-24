@@ -3,170 +3,826 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Validator - Spark Nexus</title>
+    <title>Validação de Emails - SparkNexus</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        .upload-area {
-            border: 3px dashed #cbd5e0;
-            border-radius: 20px;
-            padding: 60px;
+        /* Design System Moderno */
+        :root {
+            --primary-50: #eff6ff;
+            --primary-100: #dbeafe;
+            --primary-200: #bfdbfe;
+            --primary-300: #93c5fd;
+            --primary-400: #60a5fa;
+            --primary-500: #3b82f6;
+            --primary-600: #2563eb;
+            --primary-700: #1d4ed8;
+            --primary-800: #1e40af;
+            --primary-900: #1e3a8a;
+
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+
+            --success-50: #ecfdf5;
+            --success-500: #10b981;
+            --success-600: #059669;
+            --error-50: #fef2f2;
+            --error-500: #ef4444;
+            --error-600: #dc2626;
+            --warning-50: #fffbeb;
+            --warning-500: #f59e0b;
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--gray-900);
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+        }
+
+        .main-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             text-align: center;
-            background: #f7fafc;
-            transition: all 0.3s;
+        }
+
+        .main-header h1 {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .main-header p {
+            color: var(--gray-600);
+            font-size: 1.125rem;
+            margin: 0;
+        }
+
+        .credits-bar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .credits-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .credits-badge {
+            background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .validation-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .validation-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .validation-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-200) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: var(--primary-600);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin: 0;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 3px dashed var(--gray-300);
+            border-radius: var(--radius-xl);
+            padding: 3rem 2rem;
+            text-align: center;
+            background: var(--gray-50);
+            transition: all 0.3s ease;
             cursor: pointer;
+            position: relative;
+            overflow: hidden;
         }
 
         .upload-area:hover,
         .upload-area.dragover {
-            border-color: var(--primary-color);
-            background: #edf2ff;
+            border-color: var(--primary-400);
+            background: var(--primary-50);
+            transform: translateY(-2px);
+        }
+
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(59, 130, 246, 0.05) 50%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .upload-area:hover::before {
+            opacity: 1;
         }
 
         .upload-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--primary-500);
         }
 
-        .file-info {
-            margin-top: 20px;
-            padding: 20px;
+        .upload-area h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-area p {
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+        }
+
+        /* Textarea Area */
+        .textarea-container {
+            margin-top: 1.5rem;
+        }
+
+        .textarea-label {
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .email-textarea {
+            width: 100%;
+            height: 200px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            resize: vertical;
+            transition: all 0.2s ease;
             background: white;
-            border-radius: 10px;
+        }
+
+        .email-textarea:focus {
+            outline: none;
+            border-color: var(--primary-400);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .textarea-info {
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--gray-500);
+        }
+
+        /* File Info */
+        .file-info {
+            background: var(--success-50);
+            border: 1px solid var(--success-200);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-top: 1rem;
             display: none;
         }
 
-        .validation-results {
-            margin-top: 30px;
+        .file-info-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .file-info-icon {
+            color: var(--success-600);
+            font-size: 1.25rem;
+        }
+
+        .file-info-title {
+            font-weight: 600;
+            color: var(--success-800);
+            margin: 0;
+        }
+
+        .file-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .file-detail {
+            font-size: 0.875rem;
+            color: var(--success-700);
+        }
+
+        .file-detail strong {
+            color: var(--success-800);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--gray-700);
+            border: 2px solid var(--gray-200);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-300);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-500) 0%, var(--success-600) 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+
+        .toast {
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            max-width: 400px;
+            border-left: 4px solid;
+            animation: slideInRight 0.3s ease;
+            position: relative;
+        }
+
+        .toast-success {
+            border-color: var(--success-500);
+        }
+
+        .toast-error {
+            border-color: var(--error-500);
+        }
+
+        .toast-warning {
+            border-color: var(--warning-500);
+        }
+
+        .toast-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .toast-icon {
+            font-size: 1.25rem;
+        }
+
+        .toast-success .toast-icon {
+            color: var(--success-500);
+        }
+
+        .toast-error .toast-icon {
+            color: var(--error-500);
+        }
+
+        .toast-warning .toast-icon {
+            color: var(--warning-500);
+        }
+
+        .toast-title {
+            font-weight: 600;
+            color: var(--gray-900);
+            margin: 0;
+        }
+
+        .toast-message {
+            color: var(--gray-600);
+            font-size: 0.875rem;
+            margin: 0;
+        }
+
+        .toast-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .toast-close:hover {
+            color: var(--gray-600);
+            background: var(--gray-100);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Results */
+        .results-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             display: none;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .results-icon {
+            width: 3rem;
+            height: 3rem;
+            border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, var(--primary-100) 0%, var(--primary-200) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: var(--primary-600);
         }
 
         .result-item {
-            padding: 15px;
-            margin: 10px 0;
+            padding: 1rem 1.5rem;
+            margin: 0.5rem 0;
             background: white;
-            border-radius: 8px;
+            border-radius: var(--radius-lg);
             border-left: 4px solid;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: var(--shadow-sm);
         }
 
         .result-valid {
-            border-color: var(--success-color);
+            border-color: var(--success-500);
+            background: var(--success-50);
         }
 
         .result-invalid {
-            border-color: var(--danger-color);
+            border-color: var(--error-500);
+            background: var(--error-50);
+        }
+
+        .result-email {
+            font-weight: 500;
+            color: var(--gray-900);
+        }
+
+        .result-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .result-valid .result-status {
+            color: var(--success-600);
+        }
+
+        .result-invalid .result-status {
+            color: var(--error-600);
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+        }
+
+        .loading-content {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 3rem;
+            text-align: center;
+            box-shadow: var(--shadow-xl);
+            max-width: 400px;
+        }
+
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 4px solid var(--gray-200);
+            border-top: 4px solid var(--primary-500);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .loading-message {
+            color: var(--gray-600);
         }
     </style>
-</head>
+    <script src="/js/header.js"></script>
+    </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar">
-        <div class="navbar-container">
-            <a href="/" class="navbar-brand">🚀 Spark Nexus</a>
-            <ul class="navbar-menu">
-                <li><a href="/">Dashboard</a></li>
-                <li><a href="/upload" class="active">Email Validator</a></li>
-                <li><a href="#" onclick="showProfile()">Perfil</a></li>
-                <li><a href="#" onclick="auth.logout()">Sair</a></li>
-            </ul>
+    <script>
+        // Inicializar header
+        document.addEventListener('DOMContentLoaded', function() {
+            const header = new SparkNexusHeader({
+                      "currentPage": "validation",
+                      "breadcrumb": [
+                                {
+                                          "href": "/",
+                                          "text": "Dashboard",
+                                          "icon": "fas fa-home"
+                                },
+                                {
+                                          "text": "Validação de Emails",
+                                          "icon": "fas fa-envelope-open-text"
+                                }
+                      ],
+                      "showWelcomeHeader": true,
+                      "welcomeTitle": "Validação de Emails 📧",
+                      "welcomeSubtitle": "Valide seus emails rapidamente"
+            });
+            header.inject();
+        });
+    </script>
+    
+    <div class="container">
+<!-- Header -->
+        <div class="main-header">
+            <h1><i class="fas fa-envelope-open-text"></i> Validação de Emails</h1>
+            <p>Valide seus emails rapidamente com nossa tecnologia avançada</p>
         </div>
-    </nav>
 
-    <!-- Main Content -->
-    <div class="container" style="margin-top: 30px;">
-        <div class="card">
-            <h1>📧 Validação de Emails em Lote</h1>
-            <p style="color: #718096; margin-bottom: 30px;">
-                Faça upload de um arquivo CSV com emails para validação
-            </p>
-
-            <!-- Upload Area -->
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">📁</div>
-                <h2>Arraste seu arquivo aqui</h2>
-                <p style="color: #718096; margin: 15px 0;">ou clique para selecionar</p>
-                <input type="file" id="fileInput" accept=".csv" style="display: none;">
-                <button class="btn btn-primary">Selecionar Arquivo CSV</button>
+        <!-- Credits Bar -->
+        <div class="credits-bar">
+            <div class="credits-info">
+                <div class="credits-badge">
+                    <i class="fas fa-coins"></i>
+                    <span id="availableCredits">-</span> créditos disponíveis
+                </div>
+                <span class="text-gray-600">Plano: <strong id="currentPlan">-</strong></span>
             </div>
+            <a href="/checkout" class="btn btn-secondary">
+                <i class="fas fa-shopping-cart"></i>
+                Comprar Créditos
+            </a>
+        </div>
 
-            <!-- File Info -->
-            <div class="file-info" id="fileInfo">
-                <h3>📄 Arquivo Selecionado</h3>
-                <p id="fileName"></p>
-                <p id="fileSize"></p>
-                <p id="emailCount"></p>
-                <button class="btn btn-success" onclick="startValidation()">
-                    🚀 Iniciar Validação
-                </button>
-            </div>
+        <!-- Validation Container -->
+        <div class="validation-container">
+            <!-- File Upload -->
+            <div class="validation-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-file-upload"></i>
+                    </div>
+                    <h2 class="card-title">Upload de Arquivo</h2>
+                </div>
 
-            <!-- Organization ID -->
-            <div class="form-group" style="margin-top: 20px;">
-                <label>ID da Organização (opcional)</label>
-                <input type="text" id="organizationId" placeholder="demo" value="demo">
-            </div>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h3>Arraste seu arquivo aqui</h3>
+                    <p>Ou clique para selecionar um arquivo CSV/Excel</p>
+                    <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" style="display: none;">
+                    <button class="btn btn-primary">
+                        <i class="fas fa-folder-open"></i>
+                        Selecionar Arquivo
+                    </button>
+                </div>
 
-            <!-- Single Email Test -->
-            <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e2e8f0;">
-                <h3>Testar Email Único</h3>
-                <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <input type="email" id="singleEmail" placeholder="teste@exemplo.com" style="flex: 1;">
-                    <button class="btn btn-primary" onclick="validateSingleEmail()">
-                        Validar
+                <div class="file-info" id="fileInfo">
+                    <div class="file-info-header">
+                        <i class="fas fa-file-check file-info-icon"></i>
+                        <h4 class="file-info-title">Arquivo Carregado</h4>
+                    </div>
+                    <div class="file-details">
+                        <div class="file-detail">
+                            <strong>Nome:</strong> <span id="fileName"></span>
+                        </div>
+                        <div class="file-detail">
+                            <strong>Tamanho:</strong> <span id="fileSize"></span>
+                        </div>
+                        <div class="file-detail">
+                            <strong>Emails:</strong> <span id="emailCount"></span>
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="startFileValidation()">
+                        <i class="fas fa-play"></i>
+                        Iniciar Validação
                     </button>
                 </div>
             </div>
 
-            <!-- Results -->
-            <div class="validation-results" id="validationResults">
-                <h3>📊 Resultados da Validação</h3>
-                <div id="resultsList"></div>
+            <!-- Text Input -->
+            <div class="validation-card">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <i class="fas fa-edit"></i>
+                    </div>
+                    <h2 class="card-title">Validação por Texto</h2>
+                </div>
+
+                <div class="textarea-container">
+                    <label class="textarea-label">
+                        <i class="fas fa-at"></i>
+                        Cole ou digite seus emails:
+                    </label>
+                    <textarea 
+                        id="emailTextarea" 
+                        class="email-textarea" 
+                        placeholder="exemplo1@email.com, exemplo2@email.com
+exemplo3@email.com
+exemplo4@email.com, exemplo5@email.com"
+                    ></textarea>
+                    <div class="textarea-info">
+                        Separe os emails por vírgula, espaço ou quebra de linha
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                    <button class="btn btn-success" onclick="startTextValidation()" id="validateTextBtn">
+                        <i class="fas fa-play"></i>
+                        Validar Emails
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearTextarea()">
+                        <i class="fas fa-eraser"></i>
+                        Limpar
+                    </button>
+                </div>
             </div>
         </div>
+
+        <!-- Results -->
+        <div class="results-container" id="resultsContainer">
+            <div class="results-header">
+                <div class="results-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h3>Resultados da Validação</h3>
+            </div>
+            <div id="resultsList"></div>
+        </div>
     </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h3 class="loading-title">Validando Emails...</h3>
+            <p class="loading-message">Aguarde enquanto processamos seus emails</p>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <script src="/js/auth.js"></script>
     <script>
         // Proteger rota
         if (!auth.protectRoute()) {
-            // Será redirecionado para login
+            window.location.href = '/login';
         }
 
         let selectedFile = null;
+        let currentCredits = 0;
 
-        // Setup upload area
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-
-        uploadArea.addEventListener('click', () => fileInput.click());
-
-        fileInput.addEventListener('change', (e) => {
-            handleFile(e.target.files[0]);
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserData();
+            setupEventListeners();
         });
 
-        // Drag and drop
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
+        // Carregar dados do usuário
+        async function loadUserData() {
+            try {
+                const response = await auth.authenticatedFetch('/api/user/quota/summary');
+                if (response.ok) {
+                    const data = await response.json();
+                    currentCredits = data.balance_credits || 0;
+                    document.getElementById('availableCredits').textContent = currentCredits.toLocaleString();
+                    document.getElementById('currentPlan').textContent = data.plan || 'Free';
+                } else {
+                    // Fallback
+                    document.getElementById('availableCredits').textContent = '0';
+                    document.getElementById('currentPlan').textContent = 'Free';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                showToast('error', 'Erro', 'Não foi possível carregar os dados do usuário');
+            }
+        }
 
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
+        // Setup event listeners
+        function setupEventListeners() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
 
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            handleFile(e.dataTransfer.files[0]);
-        });
+            // Upload area click
+            uploadArea.addEventListener('click', () => fileInput.click());
 
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                handleFile(e.target.files[0]);
+            });
+
+            // Drag and drop
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                handleFile(e.dataTransfer.files[0]);
+            });
+
+            // Textarea input counter
+            const textarea = document.getElementById('emailTextarea');
+            textarea.addEventListener('input', updateTextareaCount);
+        }
+
+        // Handle file upload
         function handleFile(file) {
             if (!file) return;
 
-            if (!file.name.endsWith('.csv')) {
-                alert('Por favor, selecione um arquivo CSV');
+            const validTypes = ['.csv', '.xlsx', '.xls'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+            
+            if (!validTypes.includes(fileExtension)) {
+                showToast('error', 'Arquivo Inválido', 'Por favor, selecione um arquivo CSV ou Excel (.csv, .xlsx, .xls)');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) { // 10MB
+                showToast('error', 'Arquivo Muito Grande', 'O arquivo deve ter no máximo 10MB');
                 return;
             }
 
@@ -174,27 +830,83 @@
 
             // Show file info
             document.getElementById('fileInfo').style.display = 'block';
-            document.getElementById('fileName').textContent = `Nome: ${file.name}`;
-            document.getElementById('fileSize').textContent = `Tamanho: ${(file.size / 1024).toFixed(2)} KB`;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
 
-            // Count emails in file
+            // Count emails if CSV
+            if (fileExtension === '.csv') {
+                countEmailsInFile(file);
+            } else {
+                document.getElementById('emailCount').textContent = 'A ser calculado...';
+            }
+
+            showToast('success', 'Arquivo Carregado', 'Arquivo selecionado com sucesso!');
+        }
+
+        // Count emails in CSV file
+        function countEmailsInFile(file) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const lines = e.target.result.split('\n').filter(line => line.trim());
-                document.getElementById('emailCount').textContent = `Emails encontrados: ${lines.length - 1}`;
+                const emailCount = Math.max(0, lines.length - 1); // Subtract header
+                document.getElementById('emailCount').textContent = emailCount.toLocaleString();
+                
+                // Check credits
+                if (emailCount > currentCredits) {
+                    showToast('warning', 'Créditos Insuficientes', 
+                        `Você precisa de ${emailCount.toLocaleString()} créditos, mas tem apenas ${currentCredits.toLocaleString()}`);
+                }
             };
             reader.readAsText(file);
         }
 
-        async function startValidation() {
+        // Update textarea count
+        function updateTextareaCount() {
+            const textarea = document.getElementById('emailTextarea');
+            const emails = extractEmailsFromText(textarea.value);
+            const btn = document.getElementById('validateTextBtn');
+            
+            if (emails.length > 0) {
+                btn.innerHTML = `<i class="fas fa-play"></i> Validar ${emails.length} Email${emails.length > 1 ? 's' : ''}`;
+                
+                if (emails.length > currentCredits) {
+                    btn.style.background = 'var(--error-500)';
+                    showToast('warning', 'Créditos Insuficientes', 
+                        `Você precisa de ${emails.length} créditos, mas tem apenas ${currentCredits}`);
+                } else {
+                    btn.style.background = '';
+                }
+            } else {
+                btn.innerHTML = `<i class="fas fa-play"></i> Validar Emails`;
+                btn.style.background = '';
+            }
+        }
+
+        // Extract emails from text
+        function extractEmailsFromText(text) {
+            if (!text.trim()) return [];
+            
+            // Split by common separators and clean
+            const emails = text
+                .split(/[,\s\n\r\t]+/)
+                .map(email => email.trim())
+                .filter(email => email && email.includes('@'))
+                .filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+            
+            return [...new Set(emails)]; // Remove duplicates
+        }
+
+        // Start file validation
+        async function startFileValidation() {
             if (!selectedFile) {
-                alert('Por favor, selecione um arquivo');
+                showToast('error', 'Erro', 'Por favor, selecione um arquivo');
                 return;
             }
 
+            showLoading(true);
+
             const formData = new FormData();
             formData.append('file', selectedFile);
-            formData.append('organizationId', document.getElementById('organizationId').value);
 
             try {
                 const response = await auth.authenticatedFetch('/api/upload', {
@@ -205,71 +917,177 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    alert(`✅ ${result.message}\n\nJob ID: ${result.jobId}`);
-
-                    // Show preview results
+                    showToast('success', 'Validação Iniciada', 
+                        `Job criado com sucesso! ID: ${result.jobId}`);
+                    
                     if (result.emails && result.emails.length > 0) {
-                        showResults(result.emails.map(item => {
-                            return {
-                                email: item.email,
-                                valid: item.valid,
-                                score: item.score,
-                            };
-                        }));
+                        showResults(result.emails.slice(0, 10)); // Show first 10 results
                     }
+                    
+                    // Update credits
+                    await loadUserData();
                 } else {
-                    alert(`❌ Erro: ${result.error}`);
+                    if (result.code === 'QUOTA_EXCEEDED') {
+                        showToast('error', 'Créditos Insuficientes', 
+                            result.details.message + '. Você pode comprar mais créditos ou aguardar o próximo período.');
+                    } else {
+                        showToast('error', 'Erro na Validação', result.error);
+                    }
                 }
             } catch (error) {
-                alert(`❌ Erro ao enviar arquivo: ${error.message}`);
+                console.error('Erro na validação:', error);
+                showToast('error', 'Erro de Conexão', 'Não foi possível processar o arquivo. Tente novamente.');
+            } finally {
+                showLoading(false);
             }
         }
 
-        async function validateSingleEmail() {
-            const email = document.getElementById('singleEmail').value;
+        // Start text validation
+        async function startTextValidation() {
+            const textarea = document.getElementById('emailTextarea');
+            const emails = extractEmailsFromText(textarea.value);
 
-            if (!email) {
-                alert('Por favor, digite um email');
+            if (emails.length === 0) {
+                showToast('error', 'Erro', 'Por favor, digite pelo menos um email válido');
                 return;
             }
 
+            if (emails.length > currentCredits) {
+                showToast('error', 'Créditos Insuficientes', 
+                    `Você precisa de ${emails.length} créditos, mas tem apenas ${currentCredits}. Compre mais créditos para continuar.`);
+                return;
+            }
+
+            showLoading(true);
+
             try {
-                const response = await auth.authenticatedFetch('/api/validate/single', {
+                const response = await auth.authenticatedFetch('/api/validate/batch-text', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ email })
+                    body: JSON.stringify({ emails })
                 });
 
                 const result = await response.json();
 
                 if (response.ok) {
-                    showResults([result]);
+                    showToast('success', 'Validação Concluída', 
+                        `${emails.length} email${emails.length > 1 ? 's' : ''} validado${emails.length > 1 ? 's' : ''} com sucesso!`);
+                    
+                    if (result.results) {
+                        showResults(result.results);
+                    }
+                    
+                    // Update credits and clear textarea
+                    await loadUserData();
+                    textarea.value = '';
+                    updateTextareaCount();
                 } else {
-                    alert(`❌ Erro: ${result.error}`);
+                    if (result.code === 'QUOTA_EXCEEDED') {
+                        showToast('error', 'Créditos Insuficientes', 
+                            result.message + '. Você pode comprar mais créditos.');
+                    } else {
+                        showToast('error', 'Erro na Validação', result.error || 'Erro desconhecido');
+                    }
                 }
             } catch (error) {
-                alert(`❌ Erro ao validar: ${error.message}`);
+                console.error('Erro na validação:', error);
+                showToast('error', 'Erro de Conexão', 'Não foi possível validar os emails. Tente novamente.');
+            } finally {
+                showLoading(false);
             }
         }
 
-        function showResults(results) {
-            const resultsDiv = document.getElementById('validationResults');
-            const resultsList = document.getElementById('resultsList');
+        // Clear textarea
+        function clearTextarea() {
+            document.getElementById('emailTextarea').value = '';
+            updateTextareaCount();
+        }
 
-            resultsDiv.style.display = 'block';
-            resultsList.innerHTML = results.map(r => `
-                <div class="result-item ${r.valid ? 'result-valid' : 'result-invalid'}">
-                    <span>${r.email}</span>
-                    <span>${r.valid ? '✅ Válido' : '❌ Inválido'} (Score: ${r.score || 0})</span>
+        // Show results
+        function showResults(results) {
+            const container = document.getElementById('resultsContainer');
+            const list = document.getElementById('resultsList');
+
+            list.innerHTML = results.map(result => {
+                const isValid = result.valid || result.score > 0.7;
+                return `
+                    <div class="result-item ${isValid ? 'result-valid' : 'result-invalid'}">
+                        <span class="result-email">${result.email}</span>
+                        <div class="result-status">
+                            <i class="fas ${isValid ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                            ${isValid ? 'Válido' : 'Inválido'}
+                            ${result.score ? `(${Math.round(result.score * 100)}%)` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.style.display = 'block';
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Show loading
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.style.display = show ? 'flex' : 'none';
+        }
+
+        // Toast notifications
+        function showToast(type, title, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <button class="toast-close" onclick="closeToast(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="toast-header">
+                    <i class="fas ${getToastIcon(type)} toast-icon"></i>
+                    <h4 class="toast-title">${title}</h4>
                 </div>
-            `).join('');
+                <p class="toast-message">${message}</p>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 5000);
+        }
+
+        function closeToast(button) {
+            const toast = button.closest('.toast');
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }
+
+        function getToastIcon(type) {
+            switch(type) {
+                case 'success': return 'fa-check-circle';
+                case 'error': return 'fa-exclamation-circle';
+                case 'warning': return 'fa-exclamation-triangle';
+                default: return 'fa-info-circle';
+            }
+        }
+
+        // Utility functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
         function showProfile() {
-            const user = auth.getUser();
-            alert(`Perfil:\n\nNome: ${user.firstName || 'Demo'} ${user.lastName || 'User'}\nEmail: ${user.email || 'demo@sparknexus.com'}\nEmpresa: ${user.company || 'Spark Nexus'}`);
+            window.location.href = '/profile.html';
         }
     </script>
 </body>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Cancelado - ValidaPro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #fc5c7d 0%, #6a82fb 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        .cancel-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: #fc8181;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .x-mark {
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+        }
+        h1 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+        .message {
+            color: #718096;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        .button {
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            border: none;
+        }
+        .button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .button-secondary {
+            background: #edf2f7;
+            color: #4a5568;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="cancel-icon">
+            <span class="x-mark">✕</span>
+        </div>
+
+        <h1>Pagamento Cancelado</h1>
+
+        <p class="message">
+            Seu pagamento foi cancelado. Nenhuma cobrança foi realizada.
+            Você pode tentar novamente quando quiser.
+        </p>
+
+        <div class="buttons">
+            <a href="/checkout" class="button button-primary">Tentar Novamente</a>
+            <a href="/dashboard" class="button button-secondary">Voltar ao Dashboard</a>
+        </div>
+    </div>
+    
+    <script src="/js/auth.js"></script>
+</body>
+</html>

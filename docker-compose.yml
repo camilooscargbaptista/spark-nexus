@@ -1,3 +1,4 @@
+version: '3.8'
 
 services:
   # ===========================================
@@ -11,17 +12,18 @@ services:
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-sparknexus}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
-      - POSTGRES_MULTIPLE_DATABASES=sparknexus_core,sparknexus_tenants,sparknexus_modules,n8n
+      - POSTGRES_MULTIPLE_DATABASES=sparknexus_core,sparknexus_tenants,sparknexus_modules,n8n,sparknexus
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./shared/database/init-multi-db.sh:/docker-entrypoint-initdb.d/init-multi-db.sh
       - ./shared/database/schemas:/schemas
+      - ./core/client-dashboard/services/migrations:/migrations
     ports:
       - "5432:5432"
     networks:
       - sparknexus-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sparknexus}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,6 +39,11 @@ services:
       - "6379:6379"
     networks:
       - sparknexus-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "auth", "${REDIS_PASSWORD:-SparkRedis2024!}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -52,6 +59,11 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - sparknexus-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ===========================================
   # CORE SERVICES
@@ -64,19 +76,36 @@ services:
     container_name: sparknexus-auth
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_core
-      - JWT_SECRET=${JWT_SECRET:-super-secret-jwt-key}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/0
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-sparknexus}:${RABBITMQ_PASS:-SparkMQ2024!}@rabbitmq:5672
+      - NODE_ENV=${NODE_ENV:-development}
       - PORT=3001
+      # Database
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_core
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=sparknexus_core
+      - DB_USER=${POSTGRES_USER:-sparknexus}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
+      # JWT
+      - JWT_SECRET=${JWT_SECRET:-spark-nexus-jwt-secret-2024-super-secret}
+      - JWT_EXPIRES_IN=7d
+      # Redis
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-SparkRedis2024!}
+      # RabbitMQ
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-sparknexus}:${RABBITMQ_PASS:-SparkMQ2024!}@rabbitmq:5672
     ports:
       - "3001:3001"
     networks:
       - sparknexus-network
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   billing-service:
     build:
@@ -85,18 +114,39 @@ services:
     container_name: sparknexus-billing
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_core
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/1
+      - NODE_ENV=${NODE_ENV:-development}
       - PORT=3002
+      # Database
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_core
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=sparknexus_core
+      - DB_USER=${POSTGRES_USER:-sparknexus}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
+      # Stripe
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      # Redis
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-SparkRedis2024!}
+      # Email
+      - SMTP_HOST=${SMTP_HOST:-smtp.titan.email}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-contato@sparknexus.com.br}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${SMTP_FROM:-contato@sparknexus.com.br}
     ports:
       - "3002:3002"
     networks:
       - sparknexus-network
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   tenant-service:
     build:
@@ -105,16 +155,29 @@ services:
     container_name: sparknexus-tenant
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_tenants
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/2
+      - NODE_ENV=${NODE_ENV:-development}
       - PORT=3003
+      # Database
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_tenants
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=sparknexus_tenants
+      - DB_USER=${POSTGRES_USER:-sparknexus}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
+      # Redis
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/2
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-SparkRedis2024!}
     ports:
       - "3003:3003"
     networks:
       - sparknexus-network
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   # ===========================================
   # FRONTEND DASHBOARDS
@@ -132,9 +195,21 @@ services:
     ports:
       - "4200:4200"
     environment:
-      - API_GATEWAY_URL=http://localhost:8000
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=4200
+      - API_GATEWAY_URL=${API_GATEWAY_URL:-http://localhost:8000}
+      # APIs internas
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - BILLING_SERVICE_URL=http://billing-service:3002
+      - TENANT_SERVICE_URL=http://tenant-service:3003
+      # Stripe (para admin)
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
     networks:
       - sparknexus-network
+    depends_on:
+      - auth-service
+      - billing-service
+      - tenant-service
 
   client-dashboard:
     build:
@@ -145,40 +220,83 @@ services:
     volumes:
       - ./core/client-dashboard:/app
       - /app/node_modules
+      - ./core/client-dashboard/uploads:/app/uploads
+      - ./core/client-dashboard/temp:/app/temp
     ports:
       - "4201:4201"
     environment:
-      - API_GATEWAY_URL=http://localhost:8000
-    networks:
-      - sparknexus-network
-
-  # ===========================================
-  # API GATEWAY
-  # ===========================================
-
-  kong:
-    image: kong:latest
-    container_name: sparknexus-gateway
-    restart: unless-stopped
-    environment:
-      - KONG_DATABASE=postgres
-      - KONG_PG_HOST=postgres
-      - KONG_PG_USER=${POSTGRES_USER:-sparknexus}
-      - KONG_PG_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
-      - KONG_PG_DATABASE=sparknexus_core
-      - KONG_PROXY_ACCESS_LOG=/dev/stdout
-      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
-      - KONG_PROXY_ERROR_LOG=/dev/stderr
-      - KONG_ADMIN_ERROR_LOG=/dev/stderr
-      - KONG_ADMIN_LISTEN=0.0.0.0:8001
-    ports:
-      - "8000:8000"  # Proxy
-      - "8001:8001"  # Admin API
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=4201
+      # API Gateway
+      - API_GATEWAY_URL=${API_GATEWAY_URL:-http://localhost:8000}
+      # Database Principal
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=sparknexus
+      - DB_USER=${POSTGRES_USER:-sparknexus}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
+      # Stripe
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-SparkRedis2024!}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/3
+      # JWT
+      - JWT_SECRET=${JWT_SECRET:-spark-nexus-jwt-secret-2024-super-secret}
+      # Email
+      - SMTP_HOST=${SMTP_HOST:-smtp.titan.email}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-contato@sparknexus.com.br}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${SMTP_FROM:-contato@sparknexus.com.br}
+      # APIs internas
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - BILLING_SERVICE_URL=http://billing-service:3002
+      - TENANT_SERVICE_URL=http://tenant-service:3003
+      - EMAIL_VALIDATOR_URL=http://email-validator:4001
+      # Features
+      - ENABLE_STRIPE=${ENABLE_STRIPE:-true}
+      - ENABLE_EMAIL_VALIDATION=${ENABLE_EMAIL_VALIDATION:-true}
+      - ENABLE_WEBHOOKS=${ENABLE_WEBHOOKS:-true}
     networks:
       - sparknexus-network
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ===========================================
+  # API GATEWAY (OPCIONAL - Comentado por enquanto)
+  # ===========================================
+
+  # kong:
+  #   image: kong:latest
+  #   container_name: sparknexus-gateway
+  #   restart: unless-stopped
+  #   environment:
+  #     - KONG_DATABASE=postgres
+  #     - KONG_PG_HOST=postgres
+  #     - KONG_PG_USER=${POSTGRES_USER:-sparknexus}
+  #     - KONG_PG_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
+  #     - KONG_PG_DATABASE=sparknexus_core
+  #     - KONG_PROXY_ACCESS_LOG=/dev/stdout
+  #     - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+  #     - KONG_PROXY_ERROR_LOG=/dev/stderr
+  #     - KONG_ADMIN_ERROR_LOG=/dev/stderr
+  #     - KONG_ADMIN_LISTEN=0.0.0.0:8001
+  #   ports:
+  #     - "8000:8000"  # Proxy
+  #     - "8001:8001"  # Admin API
+  #   networks:
+  #     - sparknexus-network
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
 
   # ===========================================
   # MODULES
@@ -191,57 +309,77 @@ services:
     container_name: sparknexus-email-validator
     restart: unless-stopped
     environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=4001
       - MODULE_ID=email-validator
       - MODULE_NAME=Email Validator Pro
+      # Database
       - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_modules
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/3
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=sparknexus_modules
+      - DB_USER=${POSTGRES_USER:-sparknexus}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
+      # Redis
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-SparkRedis2024!}@redis:6379/4
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-SparkRedis2024!}
+      # APIs
       - HUNTER_API_KEY=${HUNTER_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - N8N_WEBHOOK_URL=http://n8n:5678
-      - PORT=4001
+      # Features
+      - ENABLE_SMTP_CHECK=${ENABLE_SMTP_CHECK:-true}
+      - ENABLE_DISPOSABLE_CHECK=${ENABLE_DISPOSABLE_CHECK:-true}
+      - ENABLE_TYPO_CORRECTION=${ENABLE_TYPO_CORRECTION:-true}
     ports:
       - "4001:4001"
     networks:
       - sparknexus-network
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
-  crm-connector:
-    build:
-      context: ./modules/crm-connector
-      dockerfile: Dockerfile
-    container_name: sparknexus-crm-connector
-    restart: unless-stopped
-    environment:
-      - MODULE_ID=crm-connector
-      - MODULE_NAME=CRM Connector
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_modules
-      - PORT=4002
-    ports:
-      - "4002:4002"
-    networks:
-      - sparknexus-network
-    depends_on:
-      - postgres
+  # crm-connector:
+  #   build:
+  #     context: ./modules/crm-connector
+  #     dockerfile: Dockerfile
+  #   container_name: sparknexus-crm-connector
+  #   restart: unless-stopped
+  #   environment:
+  #     - NODE_ENV=${NODE_ENV:-development}
+  #     - PORT=4002
+  #     - MODULE_ID=crm-connector
+  #     - MODULE_NAME=CRM Connector
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_modules
+  #   ports:
+  #     - "4002:4002"
+  #   networks:
+  #     - sparknexus-network
+  #   depends_on:
+  #     - postgres
 
-  lead-scorer:
-    build:
-      context: ./modules/lead-scorer
-      dockerfile: Dockerfile
-    container_name: sparknexus-lead-scorer
-    restart: unless-stopped
-    environment:
-      - MODULE_ID=lead-scorer
-      - MODULE_NAME=Lead Scorer AI
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_modules
-      - PORT=4003
-    ports:
-      - "4003:4003"
-    networks:
-      - sparknexus-network
-    depends_on:
-      - postgres
+  # lead-scorer:
+  #   build:
+  #     context: ./modules/lead-scorer
+  #     dockerfile: Dockerfile
+  #   container_name: sparknexus-lead-scorer
+  #   restart: unless-stopped
+  #   environment:
+  #     - NODE_ENV=${NODE_ENV:-development}
+  #     - PORT=4003
+  #     - MODULE_ID=lead-scorer
+  #     - MODULE_NAME=Lead Scorer AI
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER:-sparknexus}:${POSTGRES_PASSWORD:-SparkNexus2024!}@postgres:5432/sparknexus_modules
+  #   ports:
+  #     - "4003:4003"
+  #   networks:
+  #     - sparknexus-network
+  #   depends_on:
+  #     - postgres
 
   # ===========================================
   # AUTOMATION
@@ -261,6 +399,8 @@ services:
       - DB_POSTGRESDB_DATABASE=n8n
       - DB_POSTGRESDB_USER=${POSTGRES_USER:-sparknexus}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-SparkNexus2024!}
+      - N8N_WEBHOOK_BASE_URL=http://localhost:5678
+      - WEBHOOK_URL=http://localhost:5678
     volumes:
       - n8n_data:/home/node/.n8n
       - ./shared/n8n/workflows:/workflows
@@ -269,10 +409,11 @@ services:
     networks:
       - sparknexus-network
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   # ===========================================
-  # MONITORING (OPCIONAL)
+  # MONITORING (OPCIONAL - Ativado com profile)
   # ===========================================
 
   prometheus:
@@ -296,23 +437,45 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_INSTALL_PLUGINS=redis-datasource
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infrastructure/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
     ports:
       - "3000:3000"
     networks:
       - sparknexus-network
     profiles:
       - monitoring
+    depends_on:
+      - prometheus
+
+# ===========================================
+# VOLUMES
+# ===========================================
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
   rabbitmq_data:
+    driver: local
   n8n_data:
+    driver: local
   prometheus_data:
+    driver: local
   grafana_data:
+    driver: local
+
+# ===========================================
+# NETWORKS
+# ===========================================
 
 networks:
   sparknexus-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

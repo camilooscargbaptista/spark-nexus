@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validação de Emails - Spark Nexus</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <script src="/js/header.js"></script>
+    <style>
+        /* Design System Moderno */
+        :root {
+            --primary-50: #eff6ff;
+            --primary-100: #dbeafe;
+            --primary-200: #bfdbfe;
+            --primary-300: #93c5fd;
+            --primary-400: #60a5fa;
+            --primary-500: #3b82f6;
+            --primary-600: #2563eb;
+            --primary-700: #1d4ed8;
+            --primary-800: #1e40af;
+            --primary-900: #1e3a8a;
+
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+
+            --success-500: #10b981;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            min-height: 100vh;
+            color: var(--gray-900);
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--gray-300);
+            border-radius: var(--radius-lg);
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary-500);
+            background: rgba(59, 130, 246, 0.05);
+        }
+        
+        .upload-area.dragover {
+            border-color: var(--primary-500);
+            background: rgba(59, 130, 246, 0.1);
+            transform: scale(1.02);
+        }
+        
+        .welcome-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .processing-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 1rem;
+            padding: 2rem;
+        }
+        
+        .status-card {
+            border-left: 4px solid;
+            background: white;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .status-pending { border-left-color: #6c757d; }
+        .status-processing { border-left-color: #fd7e14; }
+        .status-completed { border-left-color: #198754; }
+        .status-failed { border-left-color: #dc3545; }
+
+        /* Breadcrumb */
+        .custom-breadcrumb {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .breadcrumb-item a {
+            color: var(--primary-600);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .breadcrumb-item a:hover {
+            color: var(--primary-700);
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--gray-600);
+        }
+        
+        .progress-ring {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        
+        .job-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Inicializar header
+        document.addEventListener('DOMContentLoaded', function() {
+            const header = new SparkNexusHeader({
+                      "currentPage": "validation",
+                      "breadcrumb": [
+                                {
+                                          "href": "/",
+                                          "text": "Dashboard",
+                                          "icon": "fas fa-home"
+                                },
+                                {
+                                          "text": "Validação de Emails",
+                                          "icon": "fas fa-envelope-open-text"
+                                }
+                      ],
+                      "showWelcomeHeader": true,
+                      "welcomeTitle": "Validação de Emails 📧",
+                      "welcomeSubtitle": "Carregando informações do usuário..."
+            });
+            header.inject();
+        });
+    </script>
+    
+    <div class="container">
+
+        <div class="row">
+            <!-- Upload de arquivo -->
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-upload"></i>
+                            Upload de Arquivo CSV
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Área de upload -->
+                        <div class="upload-area" id="uploadArea">
+                            <div class="mb-3">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <h5>Arraste seu arquivo aqui</h5>
+                                <p class="text-muted">Ou clique para selecionar um arquivo CSV/Excel</p>
+                            </div>
+                            <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="d-none">
+                            <button class="btn btn-primary" type="button">
+                                <i class="fas fa-folder-open"></i>
+                                Selecionar Arquivo
+                            </button>
+                        </div>
+
+                        <!-- Informações do arquivo -->
+                        <div id="fileInfo" class="mt-3 p-3 bg-light rounded" style="display: none;">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <i class="fas fa-file-check text-success"></i>
+                                        <span id="fileName"></span>
+                                    </h6>
+                                    <small class="text-muted">
+                                        Tamanho: <span id="fileSize"></span>
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <button class="btn btn-success btn-sm" onclick="uploadFile()">
+                                        <i class="fas fa-paper-plane"></i>
+                                        Enviar para Validação
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm ms-2" onclick="clearFile()">
+                                        <i class="fas fa-times"></i>
+                                        Remover
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Validação por texto -->
+                        <hr class="my-4">
+                        
+                        <h6>
+                            <i class="fas fa-keyboard"></i>
+                            Validação por Texto
+                        </h6>
+                        <div class="mb-3">
+                            <textarea class="form-control" id="emailTextarea" rows="4" 
+                                placeholder="Cole seus emails aqui (separados por vírgula, espaço ou quebra de linha)
+exemplo@email.com, teste@dominio.com
+usuario@teste.com"></textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="validateEmails()">
+                            <i class="fas fa-check-circle"></i>
+                            Validar Emails
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status dos jobs -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-tasks"></i>
+                            Status dos Processamentos
+                        </h6>
+                        <button class="btn btn-sm btn-outline-primary" onclick="refreshJobs()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="jobsList" class="job-list">
+                            <div class="text-center py-3">
+                                <i class="fas fa-tasks fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">Nenhum processamento em andamento</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de processamento -->
+    <div class="modal fade" id="processingModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-cog fa-spin"></i>
+                        Processamento em Andamento
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="processing-card text-center">
+                        <div class="d-flex align-items-center justify-content-center mb-4">
+                            <div class="progress-ring me-3">
+                                <i class="fas fa-envelope fa-3x pulse"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-1">Processando seus emails...</h4>
+                                <p class="mb-0">Isso pode levar alguns minutos</p>
+                            </div>
+                        </div>
+                        
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="h5 mb-0" id="totalEmailsProcessing">-</div>
+                                <small>Total de emails</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="h5 mb-0" id="estimatedTime">-</div>
+                                <small>Tempo estimado</small>
+                            </div>
+                            <div class="col-4">
+                                <div class="h5 mb-0" id="jobIdDisplay">-</div>
+                                <small>Job ID</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Processamento Assíncrono:</strong> Seu arquivo está sendo validado em segundo plano. 
+                            Você receberá um e-mail com o relatório detalhado quando o processamento for concluído. 
+                            Você pode fechar esta janela e continuar usando o sistema.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="closeProcessingModal()">
+                        <i class="fas fa-check"></i>
+                        Entendi, continuar navegando
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmação de upload -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle text-warning"></i>
+                        Confirmar Upload
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="confirmContent">
+                        <!-- Conteúdo será preenchido dinamicamente -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmUploadBtn">
+                        Confirmar Upload
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <i class="fas fa-info-circle text-primary me-2"></i>
+                <strong class="me-auto">Spark Nexus</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody">
+                <!-- Conteúdo do toast -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth.js"></script>
+
+    <script>
+        let currentFile = null;
+        let jobPollingInterval = null;
+        let activeJobs = new Set();
+
+        // Função para verificar autenticação
+        function checkAuth() {
+            if (!auth.isAuthenticated()) {
+                window.location.href = '/login';
+                return false;
+            }
+            return true;
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            loadUserInfo();
+            loadCreditsInfo();
+            loadActiveJobs();
+            setupUploadArea();
+            
+            // Polling para atualizar jobs
+            setInterval(refreshJobs, 10000); // A cada 10 segundos
+        });
+
+        // Configurar área de upload
+        function setupUploadArea() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            // Click to upload
+            uploadArea.addEventListener('click', () => fileInput.click());
+
+            // Drag & drop
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+        }
+
+        // Manipular seleção de arquivo
+        function handleFileSelect(file) {
+            if (!file.name.match(/\.(csv|xlsx|xls)$/i)) {
+                showToast('Tipo de arquivo não suportado. Use CSV ou Excel.', 'error');
+                return;
+            }
+
+            currentFile = file;
+            
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileInfo').style.display = 'block';
+            
+            showToast(`Arquivo ${file.name} carregado com sucesso!`, 'success');
+        }
+
+        // Upload de arquivo
+        async function uploadFile() {
+            if (!currentFile) {
+                showToast('Nenhum arquivo selecionado', 'error');
+                return;
+            }
+
+            // Mostrar modal com loading enquanto calcula
+            const confirmContent = document.getElementById('confirmContent');
+            
+            confirmContent.innerHTML = `
+                <div class="row">
+                    <div class="col-12 text-center">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Calculando...</span>
+                        </div>
+                        <p>Analisando arquivo e calculando créditos necessários...</p>
+                    </div>
+                </div>
+            `;
+
+            const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+            confirmModal.show();
+
+            try {
+                // Calcular créditos com estimativa mais precisa
+                const creditsNeeded = await estimateCreditsNeeded(currentFile);
+                
+                confirmContent.innerHTML = `
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Detalhes do Upload:</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Arquivo:</strong> ${currentFile.name}</li>
+                                <li><strong>Tamanho:</strong> ${formatFileSize(currentFile.size)}</li>
+                                <li><strong>Emails estimados:</strong> ~${creditsNeeded.toLocaleString()}</li>
+                                <li><strong>Créditos necessários:</strong> <span class="text-warning fw-bold">${creditsNeeded.toLocaleString()}</span></li>
+                            </ul>
+                            
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                O processamento será feito em segundo plano e você receberá um e-mail com o relatório.
+                                <br><small class="text-muted">Cada email consome 1 crédito (incluindo emails inválidos).</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Configurar botão de confirmação
+                document.getElementById('confirmUploadBtn').onclick = async () => {
+                    confirmModal.hide();
+                    await performUpload();
+                };
+                
+            } catch (error) {
+                console.error('Erro ao calcular créditos:', error);
+                confirmContent.innerHTML = `
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Não foi possível estimar o número exato de emails.
+                                <br>Prossiga por sua conta e risco.
+                            </div>
+                            <h6>Detalhes do Upload:</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Arquivo:</strong> ${currentFile.name}</li>
+                                <li><strong>Tamanho:</strong> ${formatFileSize(currentFile.size)}</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                
+                // Configurar botão de confirmação
+                document.getElementById('confirmUploadBtn').onclick = async () => {
+                    confirmModal.hide();
+                    await performUpload();
+                };
+            }
+        }
+
+        // Executar upload
+        async function performUpload() {
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            try {
+                const response = await auth.authenticatedFetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Sucesso - mostrar modal de processamento
+                    showProcessingModal(data);
+                    
+                    // Adicionar job à lista de monitoramento
+                    activeJobs.add(data.jobId);
+                    
+                    // Limpar arquivo
+                    clearFile();
+                    
+                    // Atualizar lista de jobs
+                    refreshJobs();
+                    
+                } else {
+                    throw new Error(data.error || 'Erro no upload');
+                }
+
+            } catch (error) {
+                console.error('Erro no upload:', error);
+                showToast(error.message, 'error');
+            }
+        }
+
+        // Mostrar modal de processamento
+        function showProcessingModal(data) {
+            document.getElementById('totalEmailsProcessing').textContent = data.preview.totalEmails.toLocaleString();
+            document.getElementById('estimatedTime').textContent = data.processing.estimatedTime;
+            document.getElementById('jobIdDisplay').textContent = data.jobId.substring(0, 8) + '...';
+            
+            const modal = new bootstrap.Modal(document.getElementById('processingModal'));
+            modal.show();
+        }
+
+        // Fechar modal de processamento
+        function closeProcessingModal() {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('processingModal'));
+            if (modal) modal.hide();
+        }
+
+        // Validação por texto
+        async function validateEmails() {
+            const textarea = document.getElementById('emailTextarea');
+            const text = textarea.value.trim();
+            
+            if (!text) {
+                showToast('Digite alguns emails para validar', 'error');
+                return;
+            }
+
+            // Parse emails
+            const emails = parseEmailsFromText(text);
+            
+            if (emails.length === 0) {
+                showToast('Nenhum email válido encontrado', 'error');
+                return;
+            }
+
+            if (emails.length > 1000) {
+                showToast('Máximo de 1000 emails por vez. Use upload de arquivo para listas maiores.', 'error');
+                return;
+            }
+
+            try {
+                const response = await auth.authenticatedFetch('/api/validate/batch-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ emails })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast(`${emails.length} emails validados! Taxa de sucesso: ${data.stats.validPercentage}%`, 'success');
+                    textarea.value = '';
+                    loadCreditsInfo(); // Atualizar créditos
+                } else {
+                    throw new Error(data.error || 'Erro na validação');
+                }
+
+            } catch (error) {
+                console.error('Erro na validação:', error);
+                showToast(error.message, 'error');
+            }
+        }
+
+        // Parse emails do texto
+        function parseEmailsFromText(text) {
+            const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+            const matches = text.match(emailRegex);
+            return matches ? [...new Set(matches)] : [];
+        }
+
+        // Carregar informações do usuário
+        async function loadUserInfo() {
+            try {
+                const response = await auth.authenticatedFetch('/api/user/profile');
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const user = data.user;
+                    const firstName = user.first_name || user.firstName || user.email.split('@')[0];
+                    
+                    // Atualizar header padrão
+                    document.getElementById('welcomeMessage').textContent = `Validação de Emails - ${firstName} 📧`;
+                    document.getElementById('userInfo').textContent = `${user.email} • ${user.company || 'SparkNexus'}`;
+                } else {
+                    console.error('Erro ao carregar perfil do usuário');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar perfil:', error);
+            }
+        }
+
+        // Carregar informações de créditos
+        async function loadCreditsInfo() {
+            try {
+                const response = await auth.authenticatedFetch('/api/user/quota/summary');
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const creditsElement = document.getElementById('availableCredits');
+                    if (creditsElement) {
+                        creditsElement.textContent = data.balance_credits.toLocaleString();
+                    }
+                } else {
+                    console.error('Erro ao carregar quota do usuário');
+                    const creditsElement = document.getElementById('availableCredits');
+                    if (creditsElement) {
+                        creditsElement.textContent = '0';
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar créditos:', error);
+                const creditsElement = document.getElementById('availableCredits');
+                if (creditsElement) {
+                    creditsElement.textContent = 'Erro';
+                }
+            }
+        }
+
+        // Carregar jobs ativos
+        async function loadActiveJobs() {
+            try {
+                const response = await auth.authenticatedFetch('/api/validation/jobs');
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Adicionar jobs em processamento à lista de monitoramento
+                    data.jobs.forEach(job => {
+                        if (job.status === 'processing' || job.status === 'pending') {
+                            activeJobs.add(job.job_id);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar jobs:', error);
+            }
+        }
+
+        // Atualizar lista de jobs
+        async function refreshJobs() {
+            if (activeJobs.size === 0) return;
+
+            try {
+                const jobPromises = Array.from(activeJobs).map(jobId =>
+                    auth.authenticatedFetch(`/api/validation/status/${jobId}`)
+                        .then(res => res.json())
+                );
+
+                const jobs = await Promise.all(jobPromises);
+                const validJobs = jobs.filter(job => job.success);
+                
+                // Exibir TODOS os jobs (incluindo concluídos)
+                displayJobs(validJobs);
+                
+                // Depois remover jobs concluídos do polling (com delay para mostrar resultado)
+                validJobs.forEach(job => {
+                    if (job.status === 'completed' || job.status === 'failed') {
+                        // Aguardar 5 segundos antes de remover para mostrar resultado final
+                        setTimeout(() => {
+                            activeJobs.delete(job.jobId);
+                        }, 5000);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Erro ao atualizar jobs:', error);
+            }
+        }
+
+        // Exibir lista de jobs
+        function displayJobs(jobs) {
+            const container = document.getElementById('jobsList');
+            
+            if (jobs.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-3">
+                        <i class="fas fa-tasks fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">Nenhum processamento em andamento</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = jobs.map(job => {
+                const statusClass = getJobStatusClass(job.status);
+                const statusText = getJobStatusText(job.status);
+                const progress = job.progress || 0;
+                
+                return `
+                    <div class="status-card ${statusClass} p-3 mb-3 rounded">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1">Job ${job.jobId.substring(0, 8)}...</h6>
+                                <small class="text-muted">${job.emailsToProcess.toLocaleString()} emails</small>
+                            </div>
+                            <span class="badge bg-secondary">${statusText}</span>
+                        </div>
+                        
+                        ${job.status === 'processing' ? `
+                            <div class="progress mb-2" style="height: 6px;">
+                                <div class="progress-bar bg-primary" style="width: ${progress}%"></div>
+                            </div>
+                            <small class="text-muted">Processando... ${progress}%</small>
+                        ` : ''}
+                        
+                        ${job.result ? `
+                            <div class="mt-2">
+                                <small class="text-success">
+                                    ✓ ${job.result.validEmails}/${job.result.totalEmails} emails válidos
+                                </small>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Utilitários
+        function getJobStatusClass(status) {
+            const classes = {
+                'pending': 'status-pending',
+                'processing': 'status-processing',
+                'completed': 'status-completed',
+                'failed': 'status-failed'
+            };
+            return classes[status] || 'status-pending';
+        }
+
+        function getJobStatusText(status) {
+            const texts = {
+                'pending': 'Pendente',
+                'processing': 'Processando',
+                'completed': 'Concluído',
+                'failed': 'Falha'
+            };
+            return texts[status] || status;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Estimar créditos baseado no conteúdo real do arquivo
+        async function estimateCreditsNeeded(file) {
+            try {
+                // Ler uma amostra do arquivo para estimar o número de emails
+                const text = await readFilePreview(file, 50000); // Ler primeiros 50KB
+                const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+                const emailMatches = text.match(emailRegex);
+                
+                if (!emailMatches) {
+                    // Se não encontrou emails na amostra, usar estimativa por tamanho
+                    return Math.ceil(file.size / 50); // ~50 bytes por email médio
+                }
+                
+                const emailsInSample = emailMatches.length;
+                const sampleSize = Math.min(50000, file.size);
+                
+                // Extrapolar para o arquivo completo
+                const estimatedEmails = Math.ceil((emailsInSample * file.size) / sampleSize);
+                
+                return Math.max(estimatedEmails, emailsInSample); // Garantir no mínimo os emails encontrados
+            } catch (error) {
+                console.error('Erro ao estimar créditos:', error);
+                // Fallback: estimativa conservadora baseada no tamanho
+                return Math.ceil(file.size / 30); // ~30 bytes por email (mais conservador)
+            }
+        }
+        
+        // Função auxiliar para ler preview do arquivo
+        function readFilePreview(file, maxBytes) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                const blob = file.slice(0, maxBytes);
+                
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                
+                reader.readAsText(blob, 'UTF-8');
+            });
+        }
+
+        function clearFile() {
+            currentFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileInfo').style.display = 'none';
+        }
+
+        function showToast(message, type = 'info') {
+            const toastElement = document.getElementById('toast');
+            const toastBody = document.getElementById('toastBody');
+            
+            // Definir cor do ícone baseado no tipo
+            const iconClass = type === 'success' ? 'fas fa-check-circle text-success' : 
+                             type === 'error' ? 'fas fa-exclamation-circle text-danger' : 
+                             'fas fa-info-circle text-primary';
+            
+            const header = toastElement.querySelector('.toast-header i');
+            header.className = iconClass + ' me-2';
+            
+            toastBody.textContent = message;
+            
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+        }
+
+        function logout() {
+            auth.logout();
+        }
+
+        function showProfile() {
+            // Implementar modal de perfil ou redirecionar para página de perfil
+            SparkModal.alert('Função de perfil em desenvolvimento', 'Perfil');
+        }
+    </script>
+</body>
+</html>

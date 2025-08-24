@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Spark Nexus</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="/js/header.js"></script>
+    <style>
+        /* Design System Moderno */
+        :root {
+            --primary-50: #eff6ff;
+            --primary-100: #dbeafe;
+            --primary-200: #bfdbfe;
+            --primary-300: #93c5fd;
+            --primary-400: #60a5fa;
+            --primary-500: #3b82f6;
+            --primary-600: #2563eb;
+            --primary-700: #1d4ed8;
+            --primary-800: #1e40af;
+            --primary-900: #1e3a8a;
+
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+
+            --success-500: #10b981;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--gray-900);
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+        }
+        
+        /* Breadcrumb personalizado */
+        .custom-breadcrumb {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .breadcrumb-item a {
+            color: var(--primary-600);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .breadcrumb-item a:hover {
+            color: var(--primary-700);
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--gray-600);
+        }
+        
+        .welcome-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--radius-lg);
+        }
+        
+        .plan-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .plan-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .plan-card.popular {
+            border: 2px solid var(--primary-500);
+            position: relative;
+        }
+        
+        .plan-card.popular::before {
+            content: "MAIS POPULAR";
+            position: absolute;
+            top: 1rem;
+            right: -2rem;
+            background: var(--primary-500);
+            color: white;
+            padding: 0.5rem 3rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transform: rotate(45deg);
+            z-index: 10;
+        }
+        
+        .plan-card.selected {
+            border: 2px solid var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .price-display {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-600);
+        }
+        
+        .price-period {
+            color: var(--gray-500);
+            font-size: 0.9rem;
+        }
+        
+        .plan-features {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .plan-features li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: center;
+        }
+        
+        .plan-features li:last-child {
+            border-bottom: none;
+        }
+        
+        .plan-features li::before {
+            content: "✓";
+            color: var(--success-500);
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        
+        .section-header {
+            border-bottom: 2px solid var(--gray-200);
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border: 2px solid var(--gray-200);
+            background: white;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .tab-button.active {
+            border-color: var(--primary-500);
+            background: var(--primary-500);
+            color: white;
+        }
+        
+        .tab-button:hover {
+            border-color: var(--primary-300);
+        }
+        
+        .loading-skeleton {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            background: var(--gray-200);
+            border-radius: var(--radius-md);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        
+        .discount-badge {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: var(--error-500);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            z-index: 5;
+        }
+        
+        .savings-amount {
+            color: var(--success-500);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        /* Cards com opções mensal/anual */
+        .subscription-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--radius-lg);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .subscription-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .subscription-card.popular {
+            border: 2px solid var(--primary-500);
+        }
+        
+        .subscription-card.selected {
+            border: 2px solid var(--primary-500);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .subscription-card.popular::before {
+            content: "MAIS POPULAR";
+            position: absolute;
+            top: 1rem;
+            right: -2rem;
+            background: var(--primary-500);
+            color: white;
+            padding: 0.5rem 3rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transform: rotate(45deg);
+            z-index: 10;
+        }
+        
+        .plan-toggle {
+            background: var(--gray-100);
+            border-radius: var(--radius-md);
+            padding: 0.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+        }
+        
+        .plan-toggle button {
+            flex: 1;
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            transition: all 0.3s ease;
+        }
+        
+        .plan-toggle button.active {
+            background: white;
+            color: var(--primary-600);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .plan-pricing {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .plan-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+        
+        .plan-subtitle {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .price-comparison {
+            display: none;
+        }
+        
+        .price-comparison.active {
+            display: block;
+        }
+        
+        .yearly-savings {
+            background: var(--success-500);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+            display: inline-block;
+        }
+        
+        /* Botão de assinatura destacado */
+        .subscription-card .btn-primary {
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+            border: none;
+            font-weight: 600;
+            padding: 0.875rem 2rem;
+            font-size: 1rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s ease;
+        }
+        
+        .subscription-card .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            background: linear-gradient(135deg, var(--primary-700) 0%, var(--primary-800) 100%);
+        }
+        
+        .subscription-card .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .subscription-card .btn-primary i {
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Inicializar header
+        document.addEventListener('DOMContentLoaded', function() {
+            const header = new SparkNexusHeader({
+                      "currentPage": "checkout",
+                      "breadcrumb": [
+                                {
+                                          "href": "/",
+                                          "text": "Dashboard",
+                                          "icon": "fas fa-home"
+                                },
+                                {
+                                          "text": "Checkout",
+                                          "icon": "fas fa-credit-card"
+                                }
+                      ],
+                      "showWelcomeHeader": true,
+                      "welcomeTitle": "Escolha seu Plano 💳",
+                      "welcomeSubtitle": "Selecione o plano ideal para suas necessidades"
+            });
+            header.inject();
+        });
+    </script>
+    
+    <div class="container">
+<div class="welcome-header">
+            <div class="text-center">
+                <h1 style="margin: 0; color: var(--gray-900); font-size: 2.5rem; font-weight: 700;">
+                    <i class="fas fa-credit-card" style="color: var(--primary-500); margin-right: 0.5rem;"></i>
+                    Escolha seu Plano
+                </h1>
+                <p style="margin: 0.5rem 0 0 0; color: var(--gray-600); font-size: 1.1rem;">
+                    Selecione o plano ideal para suas necessidades de validação de emails
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Informações do usuário -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <div class="d-flex align-items-center gap-3">
+                                    <i class="fas fa-user-circle fa-2x text-primary"></i>
+                                    <div>
+                                        <h6 class="mb-0" id="userName">Carregando...</h6>
+                                        <small class="text-muted" id="userEmail">-</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="d-flex align-items-center justify-content-end gap-3">
+                                    <div>
+                                        <span class="badge bg-primary fs-6" id="currentCredits">- créditos</span>
+                                        <br><small class="text-muted">Saldo atual</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs para tipos de plano -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="section-tabs justify-content-center">
+                    <button class="tab-button active" onclick="switchTab('one_time')">
+                        <i class="fas fa-shopping-cart"></i> Compra Avulsa
+                    </button>
+                    <button class="tab-button" onclick="switchTab('subscription')">
+                        <i class="fas fa-calendar-alt"></i> Planos de Assinatura
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Planos -->
+        <div id="plansContainer">
+            <!-- Loading -->
+            <div id="loadingPlans" class="row">
+                <div class="col-12 text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando planos...</span>
+                    </div>
+                    <p class="mt-2">Carregando planos disponíveis...</p>
+                </div>
+            </div>
+
+            <!-- Container de planos -->
+            <div id="plansGrid" class="row g-4" style="display: none;">
+                <!-- Planos serão carregados aqui -->
+            </div>
+
+            <!-- Erro -->
+            <div id="errorPlans" class="row" style="display: none;">
+                <div class="col-12">
+                    <div class="alert alert-danger text-center">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Erro ao carregar planos. 
+                        <button class="btn btn-outline-danger btn-sm ms-2" onclick="loadPlans()">
+                            Tentar novamente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumo da compra -->
+        <div id="checkoutSummary" class="row mt-5" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-shopping-cart"></i>
+                            Resumo da Compra
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6 id="selectedPlanName">-</h6>
+                                <p class="text-muted mb-1" id="selectedPlanDescription">-</p>
+                                <div id="selectedPlanFeatures">
+                                    <!-- Features serão listadas aqui -->
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="fs-3 fw-bold text-primary" id="selectedPlanPrice">R$ 0,00</div>
+                                <div class="text-muted" id="selectedPlanPeriod">-</div>
+                                <div id="selectedPlanSavings" class="savings-amount mt-2" style="display: none;">
+                                    Economia: R$ <span id="savingsValue">0,00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-secondary" onclick="clearSelection()">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </button>
+                            <button class="btn btn-primary btn-lg" onclick="proceedToPayment()" id="checkoutBtn">
+                                <i class="fas fa-lock"></i> Finalizar Compra
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <i class="fas fa-info-circle text-primary me-2"></i>
+                <strong class="me-auto">Spark Nexus</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody">
+                <!-- Conteúdo do toast -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/auth.js"></script>
+
+    <script>
+        let stripe;
+        let allPlans = [];
+        let groupedPlans = {};
+        let selectedPlan = null;
+        let currentTab = 'one_time';
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            loadUserInfo();
+            initializeStripe();
+            loadPlans();
+        });
+
+        // Verificar autenticação
+        function checkAuth() {
+            if (!auth.isAuthenticated()) {
+                window.location.href = '/login';
+                return false;
+            }
+            return true;
+        }
+
+        // Inicializar Stripe
+        async function initializeStripe() {
+            try {
+                const response = await fetch('/api/stripe/public-key');
+                const { publicKey } = await response.json();
+                stripe = Stripe(publicKey);
+            } catch (error) {
+                console.error('Erro ao inicializar Stripe:', error);
+                showToast('Erro ao carregar sistema de pagamento', 'error');
+            }
+        }
+
+        // Carregar informações do usuário
+        async function loadUserInfo() {
+            try {
+                const response = await auth.authenticatedFetch('/api/user/profile');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('userName').textContent = `${data.user.firstName} ${data.user.lastName}`;
+                    document.getElementById('userEmail').textContent = data.user.email;
+                }
+
+                // Carregar créditos
+                const creditsResponse = await auth.authenticatedFetch('/api/user/quota/summary');
+                if (creditsResponse.ok) {
+                    const creditsData = await creditsResponse.json();
+                    document.getElementById('currentCredits').textContent = `${creditsData.balance_credits.toLocaleString()} créditos`;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar informações:', error);
+            }
+        }
+
+        // Carregar planos
+        async function loadPlans() {
+            try {
+                document.getElementById('loadingPlans').style.display = 'block';
+                document.getElementById('plansGrid').style.display = 'none';
+                document.getElementById('errorPlans').style.display = 'none';
+
+                const response = await fetch('/api/billing/plans');
+                if (!response.ok) throw new Error('Falha ao carregar planos');
+
+                const data = await response.json();
+                // Combinar todos os planos de todas as categorias
+                allPlans = [
+                    ...data.data.oneTime,
+                    ...data.data.monthly,
+                    ...data.data.yearly
+                ];
+                
+                // Agrupar planos de assinatura por categoria
+                groupSubscriptionPlans(data.data.monthly, data.data.yearly);
+                
+                displayPlans();
+                
+            } catch (error) {
+                console.error('Erro ao carregar planos:', error);
+                document.getElementById('loadingPlans').style.display = 'none';
+                document.getElementById('errorPlans').style.display = 'block';
+            }
+        }
+
+        // Agrupar planos de assinatura por categoria (mensal + anual)
+        function groupSubscriptionPlans(monthlyPlans, yearlyPlans) {
+            groupedPlans = {};
+            
+            monthlyPlans.forEach(monthlyPlan => {
+                // Encontrar o plano anual correspondente
+                const yearlyPlan = yearlyPlans.find(yearly => 
+                    yearly.plan_key.replace('yearly_', '') === monthlyPlan.plan_key.replace('monthly_', '')
+                );
+                
+                // Usar o nome base (sem "Anual")
+                const baseName = monthlyPlan.name;
+                
+                groupedPlans[baseName] = {
+                    name: baseName,
+                    emails_limit: monthlyPlan.emails_limit,
+                    features: monthlyPlan.features,
+                    monthly: monthlyPlan,
+                    yearly: yearlyPlan,
+                    is_popular: monthlyPlan.is_popular || (yearlyPlan && yearlyPlan.is_popular)
+                };
+            });
+        }
+
+        // Exibir planos filtrados
+        function displayPlans() {
+            const container = document.getElementById('plansGrid');
+            container.innerHTML = '';
+            
+            if (currentTab === 'one_time') {
+                // Mostrar planos de compra avulsa (original)
+                const oneTimePlans = allPlans.filter(plan => plan.type === 'one_time');
+                oneTimePlans.forEach(plan => {
+                    const planCard = createPlanCard(plan);
+                    container.appendChild(planCard);
+                });
+            } else if (currentTab === 'subscription') {
+                // Mostrar planos de assinatura agrupados
+                Object.values(groupedPlans).forEach(planGroup => {
+                    const subscriptionCard = createSubscriptionCard(planGroup);
+                    container.appendChild(subscriptionCard);
+                });
+            }
+
+            document.getElementById('loadingPlans').style.display = 'none';
+            document.getElementById('plansGrid').style.display = 'flex';
+        }
+
+        // Criar card de plano
+        function createPlanCard(plan) {
+            const col = document.createElement('div');
+            col.className = 'col-lg-4 col-md-6';
+            
+            const discountBadge = plan.discount_percentage > 0 ? 
+                `<div class="discount-badge">-${plan.discount_percentage}%</div>` : '';
+            
+            const popularBadge = plan.is_popular ? 'popular' : '';
+            
+            const features = Array.isArray(plan.features) ? plan.features : [];
+            const benefits = Array.isArray(plan.benefits) ? plan.benefits : [];
+            const allFeatures = [...features, ...benefits];
+            
+            // Converter preços de string para número
+            const price = parseFloat(plan.price);
+            const originalPrice = plan.original_price ? parseFloat(plan.original_price) : null;
+            
+            const priceDisplay = originalPrice && originalPrice > price ? 
+                `<div class="text-decoration-line-through text-muted fs-6">R$ ${originalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                 <div class="price-display">R$ ${price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` :
+                `<div class="price-display">R$ ${price.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`;
+            
+            const periodText = plan.type === 'one_time' ? 'pagamento único' :
+                             plan.period === 'monthly' ? 'por mês' :
+                             plan.period === 'yearly' ? 'por ano' : '';
+
+            col.innerHTML = `
+                <div class="plan-card card h-100 ${popularBadge}" onclick="selectPlan(${plan.id})">
+                    ${discountBadge}
+                    <div class="card-body d-flex flex-column">
+                        <div class="text-center mb-4">
+                            <h5 class="card-title">${plan.name}</h5>
+                            <div class="text-muted mb-3">
+                                ${parseInt(plan.emails_limit).toLocaleString()} ${plan.type === 'one_time' ? 'créditos' : 'créditos/mês'}
+                            </div>
+                            <div>
+                                ${priceDisplay}
+                                <div class="price-period">${periodText}</div>
+                            </div>
+                            ${plan.savings_amount ? `<div class="savings-amount mt-2">Economia: R$ ${parseFloat(plan.savings_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>` : ''}
+                        </div>
+                        
+                        <ul class="plan-features flex-grow-1">
+                            ${allFeatures.map(feature => `<li>${feature}</li>`).join('')}
+                        </ul>
+                        
+                        <button class="btn btn-primary mt-3">
+                            ${plan.type === 'one_time' ? 'Comprar Agora' : 'Assinar'}
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            return col;
+        }
+
+        // Criar card de assinatura com opções mensal/anual
+        function createSubscriptionCard(planGroup) {
+            const col = document.createElement('div');
+            col.className = 'col-lg-4 col-md-6';
+            
+            const monthlyPlan = planGroup.monthly;
+            const yearlyPlan = planGroup.yearly;
+            
+            const popularBadge = planGroup.is_popular ? 'popular' : '';
+            
+            // Calcular economia anual
+            const monthlyCostPerYear = parseFloat(monthlyPlan.price) * 12;
+            const yearlyCost = yearlyPlan ? parseFloat(yearlyPlan.price) : 0;
+            const yearlyDiscount = yearlyPlan ? Math.round(((monthlyCostPerYear - yearlyCost) / monthlyCostPerYear) * 100) : 0;
+            
+            col.innerHTML = `
+                <div class="subscription-card ${popularBadge}" data-plan-group="${planGroup.name}">
+                    <div class="card-body">
+                        <div class="plan-pricing">
+                            <h5 class="plan-name">${planGroup.name}</h5>
+                            <p class="plan-subtitle">${parseInt(planGroup.emails_limit).toLocaleString()} emails por mês</p>
+                            
+                            <!-- Toggle Mensal/Anual -->
+                            <div class="plan-toggle">
+                                <button onclick="togglePlanPeriod(this, 'monthly')">Mensal</button>
+                                ${yearlyPlan ? `<button class="active" onclick="togglePlanPeriod(this, 'yearly')">Anual</button>` : '<button disabled>Anual (indisponível)</button>'}
+                            </div>
+                            
+                            <!-- Preço Mensal -->
+                            <div class="price-comparison" data-period="monthly">
+                                <div class="price-display">R$ ${parseFloat(monthlyPlan.price).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div class="price-period">por mês</div>
+                            </div>
+                            
+                            <!-- Preço Anual -->
+                            ${yearlyPlan ? `
+                            <div class="price-comparison active" data-period="yearly">
+                                <div class="price-display">R$ ${parseFloat(yearlyPlan.price).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                <div class="price-period">por ano (R$ ${(parseFloat(yearlyPlan.price) / 12).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês)</div>
+                                <div class="yearly-savings">Economize ${yearlyDiscount}%</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        
+                        <ul class="plan-features flex-grow-1">
+                            ${planGroup.features.map(feature => `<li>${feature}</li>`).join('')}
+                        </ul>
+                        
+                        <div class="text-center">
+                            <button class="btn btn-primary btn-lg w-100 mt-3" onclick="selectSubscriptionPlan('${planGroup.name}', '${yearlyPlan ? 'yearly' : 'monthly'}')">
+                                <i class="fas fa-crown"></i> Assinar Plano
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return col;
+        }
+
+        // Toggle entre mensal e anual dentro do card
+        function togglePlanPeriod(button, period) {
+            const card = button.closest('.subscription-card');
+            const planGroup = card.getAttribute('data-plan-group');
+            
+            // Atualizar botões
+            const buttons = card.querySelectorAll('.plan-toggle button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Atualizar exibição de preços
+            const priceComparisons = card.querySelectorAll('.price-comparison');
+            priceComparisons.forEach(pc => pc.classList.remove('active'));
+            card.querySelector(`[data-period="${period}"]`).classList.add('active');
+            
+            // Atualizar botão de assinatura
+            const subscribeBtn = card.querySelector('.btn-primary');
+            subscribeBtn.setAttribute('onclick', `selectSubscriptionPlan('${planGroup}', '${period}')`);
+            
+            // Atualizar ícone do botão baseado no período
+            const icon = period === 'yearly' ? 'fas fa-crown' : 'fas fa-calendar-alt';
+            subscribeBtn.innerHTML = `<i class="${icon}"></i> Assinar Plano`;
+        }
+
+        // Selecionar plano de assinatura
+        function selectSubscriptionPlan(planGroupName, period) {
+            const planGroup = groupedPlans[planGroupName];
+            selectedPlan = period === 'monthly' ? planGroup.monthly : planGroup.yearly;
+            
+            if (!selectedPlan) {
+                showToast('Erro ao selecionar plano', 'error');
+                return;
+            }
+
+            // Atualizar visual dos cards
+            document.querySelectorAll('.subscription-card, .plan-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            const selectedCard = document.querySelector(`[data-plan-group="${planGroupName}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('selected');
+            }
+
+            // Exibir resumo
+            updateCheckoutSummary();
+            document.getElementById('checkoutSummary').style.display = 'block';
+
+            // Scroll para o resumo
+            document.getElementById('checkoutSummary').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+        }
+
+        // Trocar tab
+        function switchTab(type) {
+            currentTab = type;
+            
+            // Atualizar botões
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Exibir planos filtrados
+            displayPlans();
+            
+            // Limpar seleção
+            clearSelection();
+        }
+
+        // Selecionar plano
+        function selectPlan(planId) {
+            selectedPlan = allPlans.find(plan => plan.id === planId);
+            
+            if (!selectedPlan) {
+                showToast('Erro ao selecionar plano', 'error');
+                return;
+            }
+
+            // Atualizar visual dos cards
+            document.querySelectorAll('.plan-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+
+            // Exibir resumo
+            updateCheckoutSummary();
+            document.getElementById('checkoutSummary').style.display = 'block';
+
+            // Scroll para o resumo
+            document.getElementById('checkoutSummary').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+        }
+
+        // Atualizar resumo da compra
+        function updateCheckoutSummary() {
+            if (!selectedPlan) return;
+
+            document.getElementById('selectedPlanName').textContent = selectedPlan.name;
+            document.getElementById('selectedPlanDescription').textContent = 
+                `${parseInt(selectedPlan.emails_limit).toLocaleString()} ${selectedPlan.type === 'one_time' ? 'créditos' : 'créditos por mês'}`;
+            
+            document.getElementById('selectedPlanPrice').textContent = 
+                `R$ ${parseFloat(selectedPlan.price).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            
+            const periodText = selectedPlan.type === 'one_time' ? 'Pagamento único' :
+                             selectedPlan.period === 'monthly' ? 'Mensalmente' :
+                             selectedPlan.period === 'yearly' ? 'Anualmente' : '';
+            document.getElementById('selectedPlanPeriod').textContent = periodText;
+
+            // Features
+            const features = [...(selectedPlan.features || []), ...(selectedPlan.benefits || [])];
+            const featuresContainer = document.getElementById('selectedPlanFeatures');
+            featuresContainer.innerHTML = features.map(feature => 
+                `<small class="text-muted d-block">✓ ${feature}</small>`
+            ).join('');
+
+            // Savings
+            if (selectedPlan.savings_amount && parseFloat(selectedPlan.savings_amount) > 0) {
+                document.getElementById('savingsValue').textContent = 
+                    parseFloat(selectedPlan.savings_amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('selectedPlanSavings').style.display = 'block';
+            } else {
+                document.getElementById('selectedPlanSavings').style.display = 'none';
+            }
+        }
+
+        // Limpar seleção
+        function clearSelection() {
+            selectedPlan = null;
+            document.querySelectorAll('.plan-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.getElementById('checkoutSummary').style.display = 'none';
+        }
+
+        // Prosseguir para pagamento
+        async function proceedToPayment() {
+            if (!selectedPlan) {
+                showToast('Selecione um plano primeiro', 'error');
+                return;
+            }
+
+            try {
+                document.getElementById('checkoutBtn').disabled = true;
+                document.getElementById('checkoutBtn').innerHTML = 
+                    '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+                // Criar checkout session
+                const response = await auth.authenticatedFetch('/api/stripe/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        planId: selectedPlan.id,
+                        planKey: selectedPlan.plan_key,
+                        type: selectedPlan.type
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Erro ao criar sessão de checkout');
+                }
+
+                // Redirecionar para Stripe
+                const { error } = await stripe.redirectToCheckout({
+                    sessionId: data.sessionId
+                });
+
+                if (error) {
+                    throw new Error(error.message);
+                }
+
+            } catch (error) {
+                console.error('Erro no checkout:', error);
+                showToast(error.message, 'error');
+                
+                document.getElementById('checkoutBtn').disabled = false;
+                document.getElementById('checkoutBtn').innerHTML = 
+                    '<i class="fas fa-lock"></i> Finalizar Compra';
+            }
+        }
+
+        // Mostrar toast
+        function showToast(message, type = 'info') {
+            const toastElement = document.getElementById('toast');
+            const toastBody = document.getElementById('toastBody');
+            
+            const iconClass = type === 'success' ? 'fas fa-check-circle text-success' : 
+                             type === 'error' ? 'fas fa-exclamation-circle text-danger' : 
+                             'fas fa-info-circle text-primary';
+            
+            const header = toastElement.querySelector('.toast-header i');
+            header.className = iconClass + ' me-2';
+            
+            toastBody.textContent = message;
+            
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+        }
+
+        // Mostrar perfil do usuário
+        function showProfile() {
+            window.location.href = '/profile';
+        }
+
+        // Verificar sucesso do pagamento
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === 'true') {
+                showToast('✅ Pagamento confirmado! Seus créditos foram adicionados.', 'success');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 3000);
+            } else if (urlParams.get('canceled') === 'true') {
+                showToast('Pagamento cancelado. Você pode tentar novamente.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

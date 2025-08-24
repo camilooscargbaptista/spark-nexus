@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil - SparkNexus</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Design System Moderno */
+        :root {
+            --primary-50: #eff6ff;
+            --primary-100: #dbeafe;
+            --primary-200: #bfdbfe;
+            --primary-300: #93c5fd;
+            --primary-400: #60a5fa;
+            --primary-500: #3b82f6;
+            --primary-600: #2563eb;
+            --primary-700: #1d4ed8;
+            --primary-800: #1e40af;
+            --primary-900: #1e3a8a;
+
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+
+            --success-500: #10b981;
+            --warning-500: #f59e0b;
+            --error-500: #ef4444;
+
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+            --radius-sm: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--gray-900);
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+            line-height: 1.6;
+        }
+
+        .profile-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .profile-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .profile-title h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .profile-title p {
+            color: var(--gray-600);
+            font-size: 1rem;
+        }
+
+        .profile-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .action-button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-back {
+            background: var(--gray-100);
+            color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+        }
+
+        .btn-back:hover {
+            background: var(--gray-200);
+        }
+
+        .btn-logout {
+            background: var(--error-500);
+            color: white;
+        }
+
+        .btn-logout:hover {
+            background: #dc2626;
+        }
+
+        .profile-content {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .profile-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--gray-900);
+            padding: 0.75rem;
+            background: var(--gray-50);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gray-200);
+        }
+
+        .credits-card {
+            background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1.5rem;
+        }
+
+        .credits-number {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .credits-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .plan-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--success-500);
+            color: white;
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .support-info {
+            background: var(--gray-50);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--gray-200);
+        }
+
+        .support-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .support-item:last-child {
+            border-bottom: none;
+        }
+
+        .support-icon {
+            width: 2rem;
+            height: 2rem;
+            background: var(--primary-100);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-600);
+        }
+
+        @media (max-width: 768px) {
+            .profile-header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .profile-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .action-button {
+                flex: 1;
+                justify-content: center;
+            }
+        }
+    </style>
+    <script src="/js/header.js"></script>
+    </head>
+<body>
+    <script>
+        // Inicializar header
+        document.addEventListener('DOMContentLoaded', function() {
+            const header = new SparkNexusHeader({
+                      "currentPage": "profile",
+                      "breadcrumb": [
+                                {
+                                          "href": "/",
+                                          "text": "Dashboard",
+                                          "icon": "fas fa-home"
+                                },
+                                {
+                                          "text": "Perfil",
+                                          "icon": "fas fa-user"
+                                }
+                      ],
+                      "showWelcomeHeader": true,
+                      "welcomeTitle": "Meu Perfil 👤",
+                      "welcomeSubtitle": "Gerencie suas informações pessoais"
+            });
+            header.inject();
+        });
+    </script>
+
+    <div class="container">
+    <div class="profile-container">
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-title">
+                <h1><i class="fas fa-user-circle"></i> Meu Perfil</h1>
+                <p id="profileSubtitle">Gerencie suas informações e configurações</p>
+            </div>
+            <div class="profile-actions">
+                <a href="/" class="action-button btn-back">
+                    <i class="fas fa-arrow-left"></i>
+                    Voltar
+                </a>
+                <button class="action-button btn-logout" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Sair
+                </button>
+            </div>
+        </div>
+
+        <div class="profile-content">
+            <!-- Informações Pessoais -->
+            <div class="profile-section">
+                <h2 class="section-title">
+                    <i class="fas fa-user"></i>
+                    Informações Pessoais
+                </h2>
+                <div class="profile-grid">
+                    <div class="info-item">
+                        <span class="info-label">Email</span>
+                        <div class="info-value" id="userEmail">Carregando...</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Nome</span>
+                        <div class="info-value" id="userName">Carregando...</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Empresa</span>
+                        <div class="info-value" id="userCompany">Carregando...</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Data de Cadastro</span>
+                        <div class="info-value" id="userCreated">Carregando...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assinatura e Créditos -->
+            <div class="profile-section">
+                <h2 class="section-title">
+                    <i class="fas fa-credit-card"></i>
+                    Assinatura e Créditos
+                </h2>
+
+                <div class="credits-card">
+                    <div class="credits-number" id="availableCredits">-</div>
+                    <div class="credits-label">Créditos Disponíveis</div>
+                </div>
+
+                <div class="profile-grid">
+                    <div class="info-item">
+                        <span class="info-label">Plano Atual</span>
+                        <div class="info-value">
+                            <span class="plan-badge" id="currentPlan">
+                                <i class="fas fa-crown"></i>
+                                Free
+                            </span>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total de Validações</span>
+                        <div class="info-value" id="totalValidations">0</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Validações Utilizadas</span>
+                        <div class="info-value" id="usedValidations">0</div>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Limite Mensal</span>
+                        <div class="info-value" id="monthlyLimit">100</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <a href="/checkout" class="action-button" style="background: var(--primary-500); color: white;">
+                        <i class="fas fa-shopping-cart"></i>
+                        Gerenciar Assinatura
+                    </a>
+                </div>
+            </div>
+
+            <!-- Suporte -->
+            <div class="profile-section">
+                <h2 class="section-title">
+                    <i class="fas fa-headset"></i>
+                    Suporte
+                </h2>
+
+                <div class="support-info">
+                    <div class="support-item">
+                        <div class="support-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div>
+                            <strong>Email</strong><br>
+                            <span style="color: var(--gray-600);">suporte@sparknexus.com.br</span>
+                        </div>
+                    </div>
+                    <div class="support-item">
+                        <div class="support-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div>
+                            <strong>Horário de Atendimento</strong><br>
+                            <span style="color: var(--gray-600);">24/7 - Respondemos em até 2h</span>
+                        </div>
+                    </div>
+                    <div class="support-item">
+                        <div class="support-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div>
+                            <strong>Documentação</strong><br>
+                            <a href="/api-docs" target="_blank" style="color: var(--primary-600);">Ver documentação da API</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        // Proteger rota
+        if (!auth.protectRoute()) {
+            window.location.href = '/login';
+        }
+
+        // Variáveis globais
+        let currentUser = null;
+        let currentOrg = null;
+
+        // Carregar dados do usuário via API
+        async function loadUserData() {
+            try {
+                // Buscar dados do perfil
+                const profileResponse = await auth.authenticatedFetch('/api/user/profile');
+                if (profileResponse.ok) {
+                    const profileData = await profileResponse.json();
+                    currentUser = profileData.user;
+
+                    // Atualizar informações pessoais
+                    document.getElementById('userEmail').textContent = currentUser.email || 'N/A';
+                    document.getElementById('userName').textContent = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || 'N/A';
+                    document.getElementById('userCompany').textContent = currentUser.company || 'SparkNexus';
+                    document.getElementById('userCreated').textContent = new Date(currentUser.created_at || Date.now()).toLocaleDateString('pt-BR');
+                } else {
+                    console.error('Erro ao buscar dados do perfil');
+                    // Fallback para localStorage se API falhar
+                    currentUser = auth.getUser();
+                    if (currentUser) {
+                        document.getElementById('userEmail').textContent = currentUser.email;
+                        document.getElementById('userName').textContent = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || 'N/A';
+                        document.getElementById('userCompany').textContent = currentUser.company || 'SparkNexus';
+                        document.getElementById('userCreated').textContent = new Date(currentUser.createdAt || Date.now()).toLocaleDateString('pt-BR');
+                    }
+                }
+
+                // Buscar dados de quota/assinatura
+                const quotaResponse = await auth.authenticatedFetch('/api/user/quota/summary');
+                if (quotaResponse.ok) {
+                    const quotaData = await quotaResponse.json();
+
+                    document.getElementById('availableCredits').textContent = quotaData.remaining?.toLocaleString() || '0';
+                    document.getElementById('currentPlan').innerHTML = `<i class="fas fa-crown"></i> ${quotaData.plan || 'Free'}`;
+                    document.getElementById('usedValidations').textContent = quotaData.used?.toLocaleString() || '0';
+                    document.getElementById('monthlyLimit').textContent = quotaData.limit?.toLocaleString() || '100';
+                } else {
+                    console.error('Erro ao buscar dados de quota');
+                    // Fallback para dados padrão
+                    document.getElementById('availableCredits').textContent = '100';
+                    document.getElementById('currentPlan').innerHTML = `<i class="fas fa-crown"></i> Free`;
+                    document.getElementById('usedValidations').textContent = '0';
+                    document.getElementById('monthlyLimit').textContent = '100';
+                }
+
+                // Buscar estatísticas históricas
+                const statsResponse = await auth.authenticatedFetch('/api/user/stats');
+                if (statsResponse.ok) {
+                    const statsData = await statsResponse.json();
+                    document.getElementById('totalValidations').textContent = statsData.stats?.totalValidations?.toLocaleString() || '0';
+                } else {
+                    document.getElementById('totalValidations').textContent = '0';
+                }
+
+                console.log('✅ Dados do perfil carregados via API');
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                // Fallback para localStorage
+                loadUserDataFallback();
+            }
+        }
+
+        // Fallback para dados do localStorage
+        function loadUserDataFallback() {
+            currentUser = auth.getUser();
+            const orgData = localStorage.getItem('organizationData');
+
+            if (currentUser) {
+                document.getElementById('userEmail').textContent = currentUser.email;
+                document.getElementById('userName').textContent = `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || 'N/A';
+                document.getElementById('userCompany').textContent = currentUser.company || 'SparkNexus';
+                document.getElementById('userCreated').textContent = new Date(currentUser.createdAt || Date.now()).toLocaleDateString('pt-BR');
+
+                if (orgData) {
+                    currentOrg = JSON.parse(orgData);
+                    const availableCredits = (currentOrg.max_validations || 100) - (currentOrg.validations_used || 0);
+
+                    document.getElementById('availableCredits').textContent = availableCredits.toLocaleString();
+                    document.getElementById('currentPlan').innerHTML = `<i class="fas fa-crown"></i> ${currentOrg.plan || 'Free'}`;
+                    document.getElementById('totalValidations').textContent = (currentOrg.total_validations || 0).toLocaleString();
+                    document.getElementById('usedValidations').textContent = (currentOrg.validations_used || 0).toLocaleString();
+                    document.getElementById('monthlyLimit').textContent = (currentOrg.max_validations || 100).toLocaleString();
+                } else {
+                    document.getElementById('availableCredits').textContent = '100';
+                    document.getElementById('totalValidations').textContent = '0';
+                    document.getElementById('usedValidations').textContent = '0';
+                    document.getElementById('monthlyLimit').textContent = '100';
+                }
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            const confirmLogout = confirm('🚪 Tem certeza que deseja sair da sua conta?');
+            if (confirmLogout) {
+                auth.logout();
+            }
+        }
+
+        // Inicializar ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            loadUserData();
+        });
+    </script>
+</body>
+</html>

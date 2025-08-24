@@ -105,6 +105,7 @@ class AuthManager {
     // Fazer requisição autenticada
     async authenticatedFetch(url, options = {}) {
         if (!this.token) {
+            this.logout();
             throw new Error('Não autenticado');
         }
 
@@ -113,7 +114,28 @@ class AuthManager {
             'Authorization': `Bearer ${this.token}`
         };
 
-        return fetch(url, { ...options, headers });
+        try {
+            const response = await fetch(url, { ...options, headers });
+            
+            // Se token expirado ou não autorizado, fazer logout
+            if (response.status === 401 || response.status === 403) {
+                const data = await response.json().catch(() => ({}));
+                
+                // Verificar se é erro de token expirado
+                if (data.error && (data.error.includes('expired') || data.error.includes('invalid'))) {
+                    this.logout();
+                    throw new Error('Sessão expirada. Redirecionando para login...');
+                }
+            }
+            
+            return response;
+        } catch (error) {
+            // Se erro de rede ou token inválido, tentar logout
+            if (error.message.includes('expired') || error.message.includes('invalid')) {
+                this.logout();
+            }
+            throw error;
+        }
     }
 
     // Proteger rota (redirecionar se não autenticado)
@@ -123,6 +145,59 @@ class AuthManager {
             return false;
         }
         return true;
+    }
+
+    // Verificar autenticação automaticamente ao carregar página
+    async autoCheckAuth() {
+        // Páginas públicas que não precisam de autenticação
+        const publicPages = ['/login', '/register', '/404'];
+        const currentPath = window.location.pathname;
+        
+        // Se está em página pública, não verificar
+        if (publicPages.some(page => currentPath.includes(page))) {
+            return true;
+        }
+
+        // Se não tem token, redirecionar
+        if (!this.isAuthenticated()) {
+            this.logout();
+            return false;
+        }
+
+        // Verificar se token ainda é válido
+        const isValid = await this.verifyToken();
+        if (!isValid) {
+            this.logout();
+            return false;
+        }
+
+        return true;
+    }
+
+    // Inicializar interceptador global para todas as requisições
+    initGlobalErrorHandler() {
+        // Interceptar erros globais de fetch
+        const originalFetch = window.fetch;
+        window.fetch = async (url, options = {}) => {
+            try {
+                const response = await originalFetch(url, options);
+                
+                // Se requisição com token e retornou 401/403
+                if (options.headers && options.headers.Authorization && 
+                    (response.status === 401 || response.status === 403)) {
+                    
+                    const data = await response.clone().json().catch(() => ({}));
+                    
+                    if (data.error && (data.error.includes('expired') || data.error.includes('invalid'))) {
+                        this.logout();
+                    }
+                }
+                
+                return response;
+            } catch (error) {
+                throw error;
+            }
+        };
     }
 
     // Obter dados do usuário
@@ -136,3 +211,12 @@ const auth = new AuthManager();
 
 // Exportar para uso global
 window.auth = auth;
+
+// Inicializar sistema de autenticação automaticamente
+document.addEventListener('DOMContentLoaded', async () => {
+    // Inicializar interceptador global
+    auth.initGlobalErrorHandler();
+    
+    // Verificar autenticação automaticamente
+    await auth.autoCheckAuth();
+});

@@ -1,0 +1,829 @@
+<!-- core/client-dashboard/public/checkout.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - SparkNexus</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        .checkout-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .checkout-header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .checkout-header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .checkout-header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .user-info-bar {
+            background: rgba(255,255,255,0.95);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .user-info-bar .info {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .user-info-bar .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-info-bar .label {
+            font-size: 0.9em;
+            color: #718096;
+        }
+
+        .user-info-bar .value {
+            font-size: 1.1em;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .plans-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 968px) {
+            .plans-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .plan-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .section-icon {
+            font-size: 1.5em;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .plan-card {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .plan-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+
+        .plan-card.popular {
+            border-color: #48bb78;
+            background: linear-gradient(135deg, #f0fff4 0%, #f7fafc 100%);
+        }
+
+        .popular-badge {
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            background: #48bb78;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .plan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .plan-info {
+            flex: 1;
+        }
+
+        .plan-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .plan-credits {
+            color: #718096;
+            font-size: 0.95em;
+        }
+
+        .plan-price {
+            text-align: right;
+        }
+
+        .price-value {
+            font-size: 1.8em;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .price-period {
+            font-size: 0.9em;
+            color: #718096;
+        }
+
+        .plan-features {
+            list-style: none;
+            margin: 15px 0;
+            padding: 0;
+        }
+
+        .plan-features li {
+            padding: 8px 0;
+            color: #4a5568;
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .plan-features li:before {
+            content: "✓";
+            color: #48bb78;
+            font-weight: bold;
+        }
+
+        .btn-select {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-select:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-select:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .security-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .security-items {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .security-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #4a5568;
+        }
+
+        .security-icon {
+            color: #48bb78;
+            font-size: 1.2em;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.active {
+            display: block;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #c53030;
+            border: 1px solid #fc8181;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #276749;
+            border: 1px solid #9ae6b4;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="/" class="navbar-brand">
+                <i class="fas fa-bolt"></i>
+                SparkNexus
+            </a>
+            <ul class="navbar-menu">
+                <li><a href="#" onclick="showProfile()"><i class="fas fa-user-circle"></i> Perfil</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="checkout-container">
+        <!-- Breadcrumb -->
+        <div style="margin-bottom: 20px;">
+            <a href="/" style="color: white; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 0.5rem; transition: all 0.2s;">
+                <i class="fas fa-arrow-left"></i>
+                Voltar ao Dashboard
+            </a>
+        </div>
+
+        <!-- Header -->
+        <div class="checkout-header">
+            <h1>💳 Escolha seu Plano</h1>
+            <p>Valide emails com precisão e velocidade</p>
+        </div>
+
+        <!-- User Info Bar -->
+        <div class="user-info-bar" id="userInfoBar">
+            <div class="info">
+                <div class="info-item">
+                    <span class="label">👤 Email</span>
+                    <span class="value" id="userEmail">Carregando...</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">🏢 Organização</span>
+                    <span class="value" id="orgName">Carregando...</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">📋 Plano Atual</span>
+                    <span class="value" id="currentPlan">Free</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts -->
+        <div class="alert alert-error" id="errorAlert"></div>
+        <div class="alert alert-success" id="successAlert"></div>
+
+        <!-- Plans Grid -->
+        <div class="plans-container">
+            <!-- Pacotes Avulsos -->
+            <div class="plan-section">
+                <div class="section-header">
+                    <span class="section-icon">💰</span>
+                    <h2 class="section-title">Pacotes Avulsos</h2>
+                </div>
+
+                <div class="plan-card" onclick="selectPlan('onetime_1k', 'Pacote Starter', 49.99, 'payment')">
+                    <div class="plan-header">
+                        <div class="plan-info">
+                            <div class="plan-name">Pacote Starter</div>
+                            <div class="plan-credits">1.000 validações</div>
+                        </div>
+                        <div class="plan-price">
+                            <div class="price-value">R$ 49,99</div>
+                            <div class="price-period">pagamento único</div>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>Créditos não expiram</li>
+                        <li>Suporte por email</li>
+                        <li>API REST completa</li>
+                    </ul>
+                    <button class="btn-select">Comprar Agora</button>
+                </div>
+
+                <div class="plan-card" onclick="selectPlan('onetime_5k', 'Pacote Basic', 199.99, 'payment')">
+                    <div class="plan-header">
+                        <div class="plan-info">
+                            <div class="plan-name">Pacote Basic</div>
+                            <div class="plan-credits">5.000 validações</div>
+                        </div>
+                        <div class="plan-price">
+                            <div class="price-value">R$ 199,99</div>
+                            <div class="price-period">pagamento único</div>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>Créditos não expiram</li>
+                        <li>Suporte prioritário</li>
+                        <li>API REST completa</li>
+                        <li>Relatórios avançados</li>
+                    </ul>
+                    <button class="btn-select">Comprar Agora</button>
+                </div>
+
+                <div class="plan-card popular" onclick="selectPlan('onetime_10k', 'Pacote Pro', 349.99, 'payment')">
+                    <span class="popular-badge">⭐ POPULAR</span>
+                    <div class="plan-header">
+                        <div class="plan-info">
+                            <div class="plan-name">Pacote Pro</div>
+                            <div class="plan-credits">10.000 validações</div>
+                        </div>
+                        <div class="plan-price">
+                            <div class="price-value">R$ 349,99</div>
+                            <div class="price-period">pagamento único</div>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>Créditos não expiram</li>
+                        <li>Suporte VIP 24/7</li>
+                        <li>API REST completa</li>
+                        <li>Relatórios personalizados</li>
+                        <li>Webhook personalizado</li>
+                    </ul>
+                    <button class="btn-select">Comprar Agora</button>
+                </div>
+            </div>
+
+            <!-- Assinaturas Mensais -->
+            <div class="plan-section">
+                <div class="section-header">
+                    <span class="section-icon">📅</span>
+                    <h2 class="section-title">Assinaturas Mensais</h2>
+                </div>
+
+                <div class="plan-card" onclick="selectPlan('monthly_1k', 'Plano Starter', 39.99, 'subscription')">
+                    <div class="plan-header">
+                        <div class="plan-info">
+                            <div class="plan-name">Plano Starter</div>
+                            <div class="plan-credits">1.000 validações/mês</div>
+                        </div>
+                        <div class="plan-price">
+                            <div class="price-value">R$ 39,99</div>
+                            <div class="price-period">por mês</div>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>Renovação automática</li>
+                        <li>Cancele quando quiser</li>
+                        <li>Suporte por email</li>
+                        <li>Dashboard analítico</li>
+                    </ul>
+                    <button class="btn-select">Assinar</button>
+                </div>
+
+                <div class="plan-card" onclick="selectPlan('monthly_5k', 'Plano Professional', 79.99, 'subscription')">
+                    <div class="plan-header">
+                        <div class="plan-info">
+                            <div class="plan-name">Plano Professional</div>
+                            <div class="plan-credits">5.000 validações/mês</div>
+                        </div>
+                        <div class="plan-price">
+                            <div class="price-value">R$ 79,99</div>
+                            <div class="price-period">por mês</div>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>Renovação automática</li>
+                        <li>Cancele quando quiser</li>
+                        <li>Suporte prioritário 24h</li>
+                        <li>Dashboard avançado</li>
+                        <li>Integrações ilimitadas</li>
+                    </ul>
+                    <button class="btn-select">Assinar</button>
+                </div>
+
+                <div class="plan-card" onclick="selectPlan('monthly_10k', 'Plano Enterprise', 129.99, 'subscription')">
+                    <div class="plan-header">
+                        <div class="plan-info">
+                            <div class="plan-name">Plano Enterprise</div>
+                            <div class="plan-credits">10.000 validações/mês</div>
+                        </div>
+                        <div class="plan-price">
+                            <div class="price-value">R$ 129,99</div>
+                            <div class="price-period">por mês</div>
+                        </div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>Renovação automática</li>
+                        <li>Cancele quando quiser</li>
+                        <li>Suporte dedicado 24/7</li>
+                        <li>Dashboard personalizado</li>
+                        <li>SLA garantido</li>
+                        <li>API ilimitada</li>
+                    </ul>
+                    <button class="btn-select">Assinar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Section -->
+        <div class="security-section">
+            <h3>🔒 Pagamento 100% Seguro</h3>
+            <div class="security-items">
+                <div class="security-item">
+                    <span class="security-icon">✓</span>
+                    <span>Processado pelo Stripe</span>
+                </div>
+                <div class="security-item">
+                    <span class="security-icon">✓</span>
+                    <span>Criptografia SSL</span>
+                </div>
+                <div class="security-item">
+                    <span class="security-icon">✓</span>
+                    <span>Garantia de 7 dias</span>
+                </div>
+                <div class="security-item">
+                    <span class="security-icon">✓</span>
+                    <span>Cancele quando quiser</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h3>Processando...</h3>
+            <p>Você será redirecionado para o pagamento seguro</p>
+        </div>
+    </div>
+
+    <script src="/js/auth.js"></script>
+    <script>
+        // Variáveis globais
+        let currentUser = null;
+        let currentOrg = null;
+        let stripe = null;
+
+        // Inicializar Stripe dinamicamente
+        async function initializeStripe() {
+            try {
+                const response = await fetch('/api/stripe/public-key');
+                const data = await response.json();
+                stripe = Stripe(data.publicKey);
+                console.log('✅ Stripe inicializado com chave pública do backend');
+            } catch (error) {
+                console.error('❌ Erro ao carregar chave pública do Stripe:', error);
+                // Fallback para chave hardcoded
+                stripe = Stripe('pk_test_51RwQCiDDs93u86g8nLmxFiOtlX9ng32QJu4johWjyI1WiPYMwoK1R14gNY2S9eZfoY6T6NZTa8jl3VVTTLx7ELQJ00xElxaNWp');
+            }
+        }
+
+        // Verificar autenticação primeiro
+        const authCheck = auth.protectRoute();
+        if (!authCheck) {
+            // Se não estiver autenticado, redirecionar para login
+            window.location.href = '/login';
+        }
+
+        // Carregar dados do usuário via API
+        async function loadUserData() {
+            try {
+                // Buscar dados do perfil
+                const profileResponse = await auth.authenticatedFetch('/api/user/profile');
+                if (profileResponse.ok) {
+                    const profileData = await profileResponse.json();
+                    currentUser = profileData.user;
+
+                    // Atualizar informações pessoais
+                    document.getElementById('userEmail').textContent = currentUser.email || 'N/A';
+                    
+                    // Usar nome da empresa ou organização
+                    document.getElementById('orgName').textContent = currentUser.company || 'SparkNexus';
+                } else {
+                    // Fallback para localStorage
+                    currentUser = auth.getUser();
+                    if (currentUser) {
+                        document.getElementById('userEmail').textContent = currentUser.email;
+                        document.getElementById('orgName').textContent = currentUser.company || 'SparkNexus';
+                    }
+                }
+
+                // Buscar dados da organização do usuário
+                const orgResponse = await auth.authenticatedFetch('/api/user/organization');
+                if (orgResponse.ok) {
+                    const orgData = await orgResponse.json();
+                    currentOrg = orgData.organization;
+                    
+                    console.log('✅ Organização do usuário:', {
+                        id: currentOrg.id,
+                        name: currentOrg.name,
+                        plan: currentOrg.plan
+                    });
+                    
+                    document.getElementById('currentPlan').textContent = currentOrg.plan || 'Free';
+                } else {
+                    console.error('Erro ao buscar organização via API, usando fallback');
+                    // Fallback para quota API
+                    const quotaResponse = await auth.authenticatedFetch('/api/user/quota/summary');
+                    if (quotaResponse.ok) {
+                        const quotaData = await quotaResponse.json();
+                        document.getElementById('currentPlan').textContent = quotaData.plan || 'Free';
+                    } else {
+                        // Fallback para localStorage
+                        const orgDataLocal = localStorage.getItem('organizationData');
+                        if (orgDataLocal) {
+                            try {
+                                currentOrg = JSON.parse(orgDataLocal);
+                                document.getElementById('currentPlan').textContent = currentOrg.plan || 'Free';
+                            } catch (e) {
+                                console.error('Erro ao parsear organização:', e);
+                                document.getElementById('currentPlan').textContent = 'Free';
+                            }
+                        } else {
+                            document.getElementById('currentPlan').textContent = 'Free';
+                        }
+                    }
+                }
+
+                console.log('✅ Dados do checkout carregados via API');
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                // Fallback para localStorage em caso de erro
+                loadUserDataFallback();
+            }
+        }
+
+        // Fallback para dados do localStorage
+        function loadUserDataFallback() {
+            try {
+                currentUser = auth.getUser();
+                const orgData = localStorage.getItem('organizationData');
+
+                if (currentUser && currentUser.email) {
+                    document.getElementById('userEmail').textContent = currentUser.email;
+                    document.getElementById('orgName').textContent = currentUser.company || 'SparkNexus';
+
+                    if (orgData) {
+                        try {
+                            currentOrg = JSON.parse(orgData);
+                            document.getElementById('currentPlan').textContent = currentOrg.plan || 'Free';
+                        } catch (e) {
+                            console.error('Erro ao parsear organização:', e);
+                            document.getElementById('currentPlan').textContent = 'Free';
+                        }
+                    } else {
+                        document.getElementById('currentPlan').textContent = 'Free';
+                    }
+                } else {
+                    // Valores demo
+                    currentUser = { email: 'demo@sparknexus.com', id: 1 };
+                    document.getElementById('userEmail').textContent = currentUser.email;
+                    document.getElementById('orgName').textContent = 'SparkNexus';
+                    document.getElementById('currentPlan').textContent = 'Free';
+                }
+            } catch (error) {
+                console.error('Erro no fallback:', error);
+                // Valores padrão absolutos
+                currentUser = { email: 'demo@sparknexus.com', id: 1 };
+                document.getElementById('userEmail').textContent = currentUser.email;
+                document.getElementById('orgName').textContent = 'SparkNexus';
+                document.getElementById('currentPlan').textContent = 'Free';
+            }
+        }
+
+        // Função para mostrar perfil - redirecionar para página de perfil
+        function showProfile() {
+            window.location.href = '/profile.html';
+        }
+
+        // Função para selecionar plano
+        async function selectPlan(planKey, planName, price, type) {
+            if (!currentUser || !currentUser.email) {
+                showError('Erro ao identificar usuário. Por favor, faça login novamente.');
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
+                return;
+            }
+
+            if (!stripe) {
+                showError('Erro ao inicializar sistema de pagamento. Tente novamente.');
+                return;
+            }
+
+            console.log('🛒 Selecionando plano:', planKey, planName, price);
+            console.log('👤 Dados do cliente:', {
+                email: currentUser.email,
+                name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim(),
+                company: currentUser.company
+            });
+
+            // Mostrar loading
+            document.getElementById('loadingOverlay').classList.add('active');
+            hideAlerts();
+
+            // Desabilitar botões
+            document.querySelectorAll('.btn-select').forEach(btn => {
+                btn.disabled = true;
+            });
+
+            try {
+                // Verificar se temos dados da organização
+                if (!currentOrg || !currentOrg.id) {
+                    throw new Error('Dados da organização não encontrados. Recarregue a página.');
+                }
+
+                // Dados completos do cliente para enviar
+                const requestData = {
+                    organizationId: currentOrg.id,
+                    planKey: planKey,
+                    userEmail: currentUser.email,
+                    customerData: {
+                        email: currentUser.email,
+                        name: `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || 'Cliente SparkNexus',
+                        company: currentUser.company || currentOrg.name || 'SparkNexus',
+                        phone: currentUser.phone || null,
+                        cpf_cnpj: currentUser.cpf_cnpj || null
+                    },
+                    successUrl: window.location.origin + '/payment/success',
+                    cancelUrl: window.location.origin + '/checkout'
+                };
+
+                console.log('📋 Dados enviados para checkout:', {
+                    organizationId: requestData.organizationId,
+                    planKey: requestData.planKey,
+                    userEmail: requestData.userEmail,
+                    customerData: requestData.customerData
+                });
+
+                // Chamar API com token de autenticação
+                const response = await auth.authenticatedFetch('/api/stripe/create-checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Organization-Id': String(currentOrg?.id || 1)
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                const data = await response.json();
+                console.log('📥 Resposta:', data);
+
+                if (data.success && data.sessionId) {
+                    // Salvar dados da compra
+                    localStorage.setItem('lastPurchaseAttempt', JSON.stringify({
+                        planKey, planName, price, type,
+                        sessionId: data.sessionId,
+                        timestamp: new Date().toISOString()
+                    }));
+
+                    // Redirecionar para Stripe
+                    const { error } = await stripe.redirectToCheckout({
+                        sessionId: data.sessionId
+                    });
+
+                    if (error) {
+                        throw error;
+                    }
+                } else {
+                    throw new Error(data.error || 'Erro ao criar sessão de checkout');
+                }
+
+            } catch (error) {
+                console.error('❌ Erro:', error);
+                showError(error.message || 'Erro ao processar pagamento');
+
+                // Esconder loading
+                document.getElementById('loadingOverlay').classList.remove('active');
+
+                // Reabilitar botões
+                document.querySelectorAll('.btn-select').forEach(btn => {
+                    btn.disabled = false;
+                });
+            }
+        }
+
+        // Funções de alerta
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            alert.textContent = message;
+            alert.classList.add('active');
+            setTimeout(() => alert.classList.remove('active'), 5000);
+        }
+
+        function showSuccess(message) {
+            const alert = document.getElementById('successAlert');
+            alert.textContent = message;
+            alert.classList.add('active');
+            setTimeout(() => alert.classList.remove('active'), 5000);
+        }
+
+        function hideAlerts() {
+            document.getElementById('errorAlert').classList.remove('active');
+            document.getElementById('successAlert').classList.remove('active');
+        }
+
+        // Verificar se voltou do pagamento
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Inicializar Stripe primeiro
+            await initializeStripe();
+            
+            // Carregar dados do usuário imediatamente
+            await loadUserData();
+
+            // Verificar parâmetros da URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === 'true' || window.location.pathname.includes('success')) {
+                showSuccess('✅ Pagamento confirmado! Seus créditos foram adicionados.');
+                localStorage.removeItem('lastPurchaseAttempt');
+
+                // Recarregar dados após 2 segundos
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            }
+        });
+    </script>
+</body>
+</html>
